@@ -1,3 +1,5 @@
+PRAGMA foreign_keys = ON;
+
 CREATE TABLE "produtos" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
     "nome" TEXT NOT NULL,
@@ -9,6 +11,15 @@ CREATE TABLE "produtos" (
     "criado_em" DATETIME DEFAUlT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE "vendas" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "data" DATETIME DEFAULT CURRENT_TIMESTAMP,
+    "subtotal" REAL NOT NULL,
+    "desconto" REAL NOT NULL DEFAULT 0.0,
+    "total" REAL NOT NULL,
+    "forma_pagamento" TEXT NOT NULL CHECK("forma_pagamento" IN ('dinheiro', 'pix', 'cartao_credito', 'cartao_debito'))
+);
+
 CREATE TABLE "estoque" (
     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
     "produto_id" INTEGER NOT NULL,
@@ -17,11 +28,18 @@ CREATE TABLE "estoque" (
     "qtd" REAL NOT NULL,
     "obs" TEXT,
     "criado_em" DATETIME DEFAUlT CURRENT_TIMESTAMP,
-    FOREIGN KEY "produto_id" REFERENCES ("produtos"."id"),
-    FOREIGN KEY "venda_id" REFERENCES ("vendas"."id")
+    FOREIGN KEY ("produto_id") REFERENCES "produtos"("id"),
+    FOREIGN KEY ("venda_id") REFERENCES "vendas"("id")
 );
 
-CREATE TABLE "vendas" (
-    "id" INTEGER,
-
-)
+CREATE TABLE "vendas_itens" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "venda_id" INTEGER NOT NULL,
+    "produto_id" INTEGER NOT NULL,
+    "qtd" REAL NOT NULL,
+    "preco" REAL NOT NULL,
+    "desconto" REAL NOT NULL DEFAULT 0.0,
+    "total" REAL NOT NULL,
+    FOREIGN KEY ("venda_id") REFERENCES "vendas"("id"),
+    FOREIGN KEY ("produto_id") REFERENCES "produtos"("id")
+);
