@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Caixa - Mercadinho</title>
+    <!-- Essa linha abaixo conecta HTML com o arquivo JavaScript -->
+    <script src="script.js" defer></script>
+    <style>
+        /* Estilos básicos */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        /* Painel da Esquerda: Onde adiciona os produtos */
+        .painel-produtos {
+            flex: 2;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Painel da Direita: O Resumo da Compra (Cupom) */
+        .painel-resumo {
+            flex: 1;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 { margin-top: 0; }
+
+        .form-grupo {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input, select, button {
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        input { flex: 1; }
+        
+        button.btn-add {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button.btn-add:hover { background-color: #2980b9; }
+
+        button.btn-finalizar {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 15px;
+            margin-top: auto; /* Empurra o botão pro final do painel */
+        }
+
+        button.btn-finalizar:hover { background-color: #219150; }
+
+        /* Tabela do carrinho */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .total-destaque {
+            font-size: 32px;
+            font-weight: bold;
+            text-align: right;
+            margin: 20px 0;
+            color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PAINEL DE INSERÇÃO DE PRODUTOS -->
+    <div class="painel-produtos">
+        <h2>Frente de Caixa</h2>
+        
+        <div class="form-grupo">
+            <!-- esse select será preenchido pelo banco de dados -->
+            <select id="produtoSelecionado">
+                <option value="">Selecione um produto...</option>
+                <option value="1" data-preco="5.00">Leite Integral - R$ 5,00</option>
+                <option value="2" data-preco="3.50">Detergente - R$ 3,50</option>
+                <option value="3" data-preco="12.00">Café 500g - R$ 12,00</option>
+            </select>
+            
+            <input type="number" id="quantidade" placeholder="Qtd" value="1" min="1" style="flex: 0.3;">
+            <button class="btn-add" onclick="adicionarAoCarrinho()">Adicionar</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Qtd</th>
+                    <th>Preço Un.</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody id="lista-carrinho">
+                <!-- Os itens vão aparecer aqui via JavaScript -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAINEL DE RESUMO E PAGAMENTO -->
+    <div class="painel-resumo">
+        <h2>Resumo da Venda</h2>
+        <hr style="border-color: #34495e; width: 100%;">
+        
+        <p>Itens no carrinho: <span id="qtd-itens">0</span></p>
+        
+        <div class="total-destaque">
+            R$ <span id="valor-total">0,00</span>
+        </div>
+
+        <label for="formaPagamento">Forma de Pagamento:</label>
+        <select id="formaPagamento" style="margin-bottom: 20px; color: black;">
+            <option value="PIX">PIX</option>
+            <option value="DINHEIRO">Dinheiro</option>
+            <option value="CARTAO">Cartão</option>
+        </select>
+
+        <button class="btn-finalizar" onclick="finalizarVenda()">Finalizar Venda</button>
+    </div>
+
+</body>
+</html>
