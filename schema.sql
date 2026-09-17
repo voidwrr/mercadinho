@@ -43,3 +43,37 @@ CREATE TABLE "vendas_itens" (
     FOREIGN KEY ("venda_id") REFERENCES "vendas"("id"),
     FOREIGN KEY ("produto_id") REFERENCES "produtos"("id")
 );
+
+CREATE VIEW "vw_estoque_atual" AS
+SELECT "produtos"."id", "nome", "unidade", "preco_venda", "estoque_minimo", COALESCE(SUM("estoque"."qtd"), 0) AS "saldo_atual"
+FROM "produtos"
+LEFT JOIN "estoque" ON "produtos"."id" = "estoque"."produto_id"
+WHERE "ativo" = 1
+GROUP BY "produtos"."id";
+
+CREATE VIEW "vw_produtos_estoque_baixo" AS
+SELECT *
+FROM "vw_estoque_atual"
+WHERE "saldo_atual" <= "estoque_minimo";
+
+CREATE VIEW "vw_produtos_ativo" AS
+SELECT "id", "nome", "unidade", "preco_custo", "preco_venda", "estoque_minimo", "criado_em"
+FROM "produtos"
+WHERE "ativo" = 1;
+
+CREATE TRIGGER "trg_produto_delete"
+INSTEAD OF 
+DELETE ON "vw_produtos_ativo"
+BEGIN
+    UPDATE "produtos" 
+    SET "ativo" = 0
+    WHERE "id" = OLD."id"
+END;
+
+CREATE TRIGGER "trg_venda_itens"
+AFTER INSERT ON "vendas_itens"
+FOR EACH ROW
+BEGIN
+    INSERT INTO "estoque" ("produto_id", "venda_id", "movimentacao", "qtd", "obs")
+    VALUES (NEW."produto_id", NEW."venda_id", 'venda', -NEW."qtd", 'Baixa automatica por venda')
+END;
