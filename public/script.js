@@ -1,7 +1,7 @@
 let carrinho = [];
 let totalVenda = 0;
 
-// 1.  Busca os produtos no banco de dados assim que a tela abre
+// 1. Busca os produtos no banco de dados assim que a tela abre
 document.addEventListener("DOMContentLoaded", carregarProdutos);
 
 async function carregarProdutos() {
@@ -9,7 +9,8 @@ async function carregarProdutos() {
         const resposta = await fetch('/api/produtos');
         const produtos = await resposta.json();
         
-        const select = document.getElementById("produtoSelecionado");
+        // CORREÇÃO: Atualizado para o novo ID 'produtoSelect'
+        const select = document.getElementById("produtoSelect");
         
         // Limpa a lista atual (tira os produtos falsos)
         select.innerHTML = '<option value="">Selecione um produto...</option>';
@@ -31,10 +32,12 @@ async function carregarProdutos() {
 
 // 2. Adiciona item na tabela
 function adicionarAoCarrinho() {
-    const select = document.getElementById("produtoSelecionado");
+    // CORREÇÃO: Atualizado para o novo ID 'produtoSelect'
+    const select = document.getElementById("produtoSelect");
     const quantidadeInput = document.getElementById("quantidade");
     
     const idProduto = select.value;
+    // Pega só o nome (antes do " - R$")
     const nomeProduto = select.options[select.selectedIndex].text.split(" - ")[0];
     const preco = parseFloat(select.options[select.selectedIndex].getAttribute("data-preco"));
     const quantidade = parseInt(quantidadeInput.value);
@@ -66,7 +69,8 @@ function adicionarAoCarrinho() {
 
 // 3. Atualiza o visual da tabela e totais
 function atualizarTela() {
-    const tbody = document.getElementById("lista-carrinho");
+    // CORREÇÃO: Atualizado para o novo ID 'listaCarrinho'
+    const tbody = document.getElementById("listaCarrinho");
     tbody.innerHTML = ""; 
     totalVenda = 0;
 
@@ -76,15 +80,16 @@ function atualizarTela() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${item.nome}</td>
-            <td>${item.quantidade}</td>
             <td>R$ ${item.preco_unitario.toFixed(2).replace('.', ',')}</td>
+            <td>${item.quantidade}</td>
             <td>R$ ${item.subtotal.toFixed(2).replace('.', ',')}</td>
         `;
         tbody.appendChild(tr);
     });
 
-    document.getElementById("qtd-itens").innerText = carrinho.length;
-    document.getElementById("valor-total").innerText = totalVenda.toFixed(2).replace('.', ',');
+    // CORREÇÃO: Atualizado para os novos IDs 'qtdItens' e 'valorTotal'
+    document.getElementById("qtdItens").innerText = carrinho.length;
+    document.getElementById("valorTotal").innerText = totalVenda.toFixed(2).replace('.', ',');
 }
 
 // 4. Finaliza a venda enviando pro Servidor
