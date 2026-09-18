@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Estoque - Mercadinho</title>
+    <style>
+        /* CSS Moderno e Limpo */
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f4f7f6; 
+            margin: 0; 
+            padding: 40px 20px; 
+            color: #333;
+        }
+        .painel { 
+            max-width: 900px; 
+            margin: auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08); 
+        }
+        .cabecalho {
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; margin-bottom: 25px;
+        }
+        h1 { margin: 0; color: #2c3e50; font-size: 24px; }
+        .btn-voltar { 
+            text-decoration: none; background: #e2e8f0; color: #4a5568; 
+            padding: 8px 16px; border-radius: 8px; font-weight: bold; transition: 0.2s;
+        }
+        .btn-voltar:hover { background: #cbd5e1; }
+        
+        /* Formulário de Cadastro */
+        .form-cadastro { display: flex; gap: 15px; margin-bottom: 30px; }
+        input { 
+            flex: 1; padding: 12px; border: 1px solid #cbd5e1; 
+            border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;
+        }
+        input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .btn-salvar { 
+            background: #10b981; color: white; border: none; 
+            padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;
+        }
+        .btn-salvar:hover { background: #059669; }
+
+        /* Tabela de Produtos */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #f0f2f5; }
+        th { background-color: #f8fafc; color: #64748b; font-size: 14px; text-transform: uppercase; }
+        tr:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <div class="painel">
+        <div class="cabecalho">
+            <h1>📦 Gestão de Estoque</h1>
+            <a href="/caixa.html" class="btn-voltar">🔙 Ir para o Caixa</a>
+        </div>
+
+        <!-- Área de Cadastro -->
+        <form id="formCadastro" class="form-cadastro">
+            <input type="text" id="nome" placeholder="Nome do Produto" required>
+            <input type="number" step="0.01" id="preco" placeholder="Preço (Ex: 10.50)" required>
+            <input type="number" id="quantidade" placeholder="Qtd. Estoque" required>
+            <button type="submit" class="btn-salvar">➕ Cadastrar</button>
+        </form>
+
+        <!-- Tabela do Estoque Atual -->
+        <table>
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Produto</th>
+                    <th>Preço Un.</th>
+                    <th>Em Estoque</th>
+                </tr>
+            </thead>
+            <tbody id="listaEstoque">
+                <!-- Os produtos vão aparecer aqui ~ atualizados pelo JS -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Função para buscar os itens no banco e desenhar a tabela
+        async function carregarEstoque() {
+            const resposta = await fetch('/api/produtos');
+            const produtos = await resposta.json();
+            const tabela = document.getElementById('listaEstoque');
+            
+            tabela.innerHTML = ''; // Limpa a tabela antes de preencher
+            
+            produtos.forEach(p => {
+                tabela.innerHTML += `
+                    <tr>
+                        <td>#${p.id}</td>
+                        <td><strong>${p.nome}</strong></td>
+                        <td>R$ ${p.preco.toFixed(2).replace('.', ',')}</td>
+                        <td>${p.estoque || 0} un</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Evento de clique no botão de cadastrar
+        document.getElementById('formCadastro').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Impede a página de recarregar
+            
+            const nome = document.getElementById('nome').value;
+            const preco = parseFloat(document.getElementById('preco').value);
+            const estoque = parseInt(document.getElementById('quantidade').value);
+
+            // Envia para o servidor (server.js)
+            await fetch('/api/produtos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, preco, estoque })
+            });
+
+            // Limpa os campos e recarrega a tabela na hora
+            document.getElementById('formCadastro').reset();
+            carregarEstoque(); 
+        });
+
+        // Carrega a tabela assim que a página abre
+        carregarEstoque();
+    </script>
+</body>
+</html>
