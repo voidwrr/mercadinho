@@ -74,6 +74,51 @@ app.post('/api/vendas', (req, res) => {
 
     res.json({ mensagem: "Venda registada e stock atualizado com sucesso no backend!" });
 });
+
+// 6. Rota para relatórios
+app.get('/api/relatorios', (req, res) => {
+    db.get(`
+        SELECT
+            COALESCE(SUM(total), 0) AS faturamento_total,
+            COUNT(*) AS total_vendas
+        FROM vendas
+    `, [], (err, resumo) => {
+        if (err) {
+            console.error('Erro ao buscar resumo:', err.message);
+            return res.status(500).json({ erro: 'Erro ao buscar resumo.' });
+        }
+
+        db.all(`
+            SELECT
+                p.nome,
+                COALESCE(SUM(vi.qtd), 0) AS total_vendido
+            FROM vendas_itens vi
+            JOIN produtos p ON p.id = vi.produto_id
+            GROUP BY p.id, p.nome
+            ORDER BY total_vendido DESC
+            LIMIT 5
+        `, [], (err2, produtos) => {
+            if (err2) {
+                console.error('Erro ao buscar produtos mais vendidos:', err2.message);
+                return res.status(500).json({ erro: 'Erro ao buscar produtos mais vendidos.' });
+            }
+
+            res.json({
+                faturamento_total: Number(resumo?.faturamento_total || 0),
+                total_vendas: Number(resumo?.total_vendas || 0),
+                produtos_mais_vendidos: (produtos || []).map(item => ({
+                    nome: item.nome,
+                    total_vendido: Number(item.total_vendido || 0)
+                }))
+            });
+        });
+    });
+});
+
+app.get('/api/teste-relatorio', (req, res) => {
+    res.json({ ok: true, mensagem: 'rota funcionando' });
+});
+
 // Ligar o motor do servidor
 app.listen(PORT, () => {
     console.log(`\n🚀 Servidor do Mercadinho rodando LIVRE na porta ${PORT}!`);
