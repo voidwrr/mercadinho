@@ -85,22 +85,38 @@
     <script>
         // Função para buscar os itens no banco e desenhar a tabela
         async function carregarEstoque() {
-            const resposta = await fetch('/api/produtos');
-            const produtos = await resposta.json();
-            const tabela = document.getElementById('listaEstoque');
-            
-            tabela.innerHTML = ''; // Limpa a tabela antes de preencher
-            
-            produtos.forEach(p => {
-                tabela.innerHTML += `
-                    <tr>
-                        <td>#${p.id}</td>
-                        <td><strong>${p.nome}</strong></td>
-                        <td>R$ ${p.preco.toFixed(2).replace('.', ',')}</td>
-                        <td>${p.estoque || 0} un</td>
-                    </tr>
-                `;
-            });
+            try {
+                const resposta = await fetch('/api/produtos');
+                if (!resposta.ok) throw new Error('Falha ao carregar produtos');
+                
+                const produtos = await resposta.json();
+                const tabela = document.getElementById('listaEstoque');
+                
+                tabela.innerHTML = ''; // Limpa a tabela antes de preencher
+                
+                if (produtos.length === 0) {
+                    tabela.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum produto cadastrado.</td></tr>';
+                    return;
+                }
+
+                produtos.forEach(p => {
+                    // Pega o preço (preco_venda) e o estoque (saldo_atual ou fallback)
+                    const preco = Number(p.preco_venda ?? p.preco ?? 0);
+                    const saldo = p.saldo_atual ?? p.estoque ?? 0;
+                    const unidade = p.unidade || 'un';
+
+                    tabela.innerHTML += `
+                        <tr>
+                            <td>#${p.id}</td>
+                            <td><strong>${p.nome}</strong></td>
+                            <td>R$ ${preco.toFixed(2).replace('.', ',')}</td>
+                            <td>${saldo} ${unidade}</td>
+                        </tr>
+                    `;
+                });
+            } catch (erro) {
+                console.error('Erro ao carregar estoque:', erro);
+            }
         }
 
         // Evento de clique no botão de cadastrar
@@ -108,19 +124,35 @@
             e.preventDefault(); // Impede a página de recarregar
             
             const nome = document.getElementById('nome').value;
-            const preco = parseFloat(document.getElementById('preco').value);
-            const estoque = parseInt(document.getElementById('quantidade').value);
+            const preco_venda = parseFloat(document.getElementById('preco').value);
+            const estoque_qtd = parseFloat(document.getElementById('quantidade').value);
 
-            // Envia para o servidor (server.js)
-            await fetch('/api/produtos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ nome, preco, estoque })
-            });
+            try {
+                // Envia para o servidor (server.js) com os nomes de campos corretos
+                const resposta = await fetch('/api/produtos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        nome,
+                        unidade: 'un',
+                        preco_custo: 0,
+                        preco_venda,
+                        estoque_minimo: 5,
+                        estoque_qtd // ou qtd_inicial dependendo do seu backend
+                    })
+                });
 
-            // Limpa os campos e recarrega a tabela na hora
-            document.getElementById('formCadastro').reset();
-            carregarEstoque(); 
+                if (resposta.ok) {
+                    document.getElementById('formCadastro').reset();
+                    carregarEstoque(); // Recarrega a tabela na hora
+                } else {
+                    const errData = await resposta.json();
+                    alert('Erro ao cadastrar produto: ' + (errData.erro || 'Verifique o backend'));
+                }
+            } catch (erro) {
+                console.error('Erro no cadastro:', erro);
+                alert('Erro ao conectar com o servidor.');
+            }
         });
 
         // Carrega a tabela assim que a página abre

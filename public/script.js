@@ -9,19 +9,20 @@ async function carregarProdutos() {
         const resposta = await fetch('/api/produtos');
         const produtos = await resposta.json();
         
-        // CORREÇÃO: Atualizado para o novo ID 'produtoSelect'
         const select = document.getElementById("produtoSelect");
         
-        // Limpa a lista atual (tira os produtos falsos)
+        // Limpa a lista atual
         select.innerHTML = '<option value="">Selecione um produto...</option>';
         
-        // Preenche com os produtos reais do banco
+        // Preenche com os produtos reais e o saldo atual
         produtos.forEach(prod => {
             const option = document.createElement("option");
             option.value = prod.id;
             option.setAttribute("data-preco", prod.preco_venda);
-            // Formata o nome e o preço bonitinho
-            option.innerText = `${prod.nome} - R$ ${prod.preco_venda.toFixed(2).replace('.', ',')}`;
+            option.setAttribute("data-estoque", prod.saldo_atual);
+            
+            // Exibe Nome, Preço e Estoque Disponível
+            option.innerText = `${prod.nome} (Estoque: ${prod.saldo_atual} ${prod.unidade}) - R$ ${prod.preco_venda.toFixed(2).replace('.', ',')}`;
             select.appendChild(option);
         });
     } catch (erro) {
@@ -30,76 +31,107 @@ async function carregarProdutos() {
     }
 }
 
-// 2. Adiciona item na tabela
+// 2. Adiciona item no carrinho
 function adicionarAoCarrinho() {
-    // CORREÇÃO: Atualizado para o novo ID 'produtoSelect'
     const select = document.getElementById("produtoSelect");
     const quantidadeInput = document.getElementById("quantidade");
     
     const idProduto = select.value;
-    // Pega só o nome (antes do " - R$")
-    const nomeProduto = select.options[select.selectedIndex].text.split(" - ")[0];
-    const preco = parseFloat(select.options[select.selectedIndex].getAttribute("data-preco"));
-    const quantidade = parseInt(quantidadeInput.value);
+    const selectedOption = select.options[select.selectedIndex];
 
     if (!idProduto) {
         alert("Por favor, selecione um produto!");
         return;
     }
-    if (quantidade <= 0 || isNaN(quantidade)) {
+
+    const nomeProduto = selectedOption.text.split(" (Estoque:")[0];
+    const preco = parseFloat(selectedOption.getAttribute("data-preco"));
+    const estoqueDisponivel = parseFloat(selectedOption.getAttribute("data-estoque"));
+    const quantidade = parseFloat(quantidadeInput.value);
+
+    if (isNaN(quantidade) || quantidade <= 0) {
         alert("A quantidade precisa ser maior que zero!");
         return;
     }
 
-    const subtotal = preco * quantidade;
+    // Verifica se já existe o mesmo produto no carrinho para somar a quantidade
+    const itemExistente = carrinho.find(item => item.produto_id == idProduto);
+    const qtdTotalDesejada = (itemExistente ? itemExistente.qtd : 0) + quantidade;
 
-    carrinho.push({
-        produto_id: idProduto,
-        nome: nomeProduto,
-        quantidade: quantidade,
-        preco_unitario: preco,
-        subtotal: subtotal
-    });
+    // Validação de limite de estoque
+    if (qtdTotalDesejada > estoqueDisponivel) {
+        alert(`Estoque insuficiente! Disponível: ${estoqueDisponivel}`);
+        return;
+    }
+
+    if (itemExistente) {
+        itemExistente.qtd = qtdTotalDesejada;
+        itemExistente.subtotal = itemExistente.qtd * itemExistente.preco;
+    } else {
+        const subtotal = preco * quantidade;
+        carrinho.push({
+            produto_id: Number(idProduto),
+            nome: nomeProduto,
+            qtd: quantidade,          // Compatível com o campo da API e do Banco
+            preco: preco,             // Compatível com o campo da API e do Banco
+            desconto: 0,
+            subtotal: subtotal
+        });
+    }
 
     atualizarTela();
     
+    // Reseta os campos do formulário
     quantidadeInput.value = 1;
     select.value = "";
 }
 
-// 3. Atualiza o visual da tabela e totais
+// 3. Atualiza o visual da tabela e os totais
 function atualizarTela() {
-    // CORREÇÃO: Atualizado para o novo ID 'listaCarrinho'
     const tbody = document.getElementById("listaCarrinho");
     tbody.innerHTML = ""; 
     totalVenda = 0;
 
-    carrinho.forEach(item => {
+    carrinho.forEach((item, index) => {
         totalVenda += item.subtotal;
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td>${item.nome}</td>
-            <td>R$ ${item.preco_unitario.toFixed(2).replace('.', ',')}</td>
-            <td>${item.quantidade}</td>
+            <td>R$ ${item.preco.toFixed(2).replace('.', ',')}</td>
+            <td>${item.qtd}</td>
             <td>R$ ${item.subtotal.toFixed(2).replace('.', ',')}</td>
+            <td>
+                <button type="button" onclick="removerDoCarrinho(${index})" style="color: red; cursor: pointer;">❌</button>
+            </td>
         `;
         tbody.appendChild(tr);
     });
 
-    // CORREÇÃO: Atualizado para os novos IDs 'qtdItens' e 'valorTotal'
     document.getElementById("qtdItens").innerText = carrinho.length;
     document.getElementById("valorTotal").innerText = totalVenda.toFixed(2).replace('.', ',');
 }
 
-// 4. Finaliza a venda enviando pro Servidor
+// 4. Remove um item individual do carrinho
+function removerDoCarrinho(index) {
+    carrinho.splice(index, 1);
+    atualizarTela();
+}
+
+// 5. Finaliza a venda enviando para o Servidor
 async function finalizarVenda() {
     if (carrinho.length === 0) {
         alert("O carrinho está vazio!");
         return;
     }
 
-    const formaPagamento = document.getElementById("formaPagamento").value;
+    const formaPagamentoSelect = document.getElementById("formaPagamento");
+    const formaPagamento = formaPagamentoSelect ? formaPagamentoSelect.value : 'dinheiro';
+
+    if (!formaPagamento) {
+        alert("Selecione uma forma de pagamento!");
+        return;
+    }
 
     const dadosVenda = {
         subtotal: totalVenda,
@@ -116,15 +148,18 @@ async function finalizarVenda() {
             body: JSON.stringify(dadosVenda)
         });
 
+        const resultado = await resposta.json();
+
         if (resposta.ok) {
-            alert("✅ Venda finalizada com sucesso!");
+            alert(`✅ Venda #${resultado.venda_id} finalizada com sucesso!`);
             carrinho = []; 
             atualizarTela(); 
+            carregarProdutos(); // Recarrega os produtos para atualizar o saldo do estoque no select
         } else {
-            alert("Erro ao registrar a venda.");
+            alert(`❌ Erro: ${resultado.erro || "Erro ao registrar a venda."}`);
         }
     } catch (erro) {
-        alert("Erro ao conectar com o servidor.");
+        alert("❌ Erro ao conectar com o servidor.");
         console.error(erro);
     }
 }
