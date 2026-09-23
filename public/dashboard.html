@@ -114,6 +114,7 @@
 
     <div class="grafico-wrap">
       <canvas id="graficoMaisVendidos"></canvas>
+      <div id="graficoFallback" style="display:none;"></div>
     </div>
   </div>
 
@@ -141,9 +142,31 @@
         document.getElementById('totalVendas').textContent =
           vendas;
 
-        const ctx = document.getElementById('graficoMaisVendidos').getContext('2d');
+        const canvas = document.getElementById('graficoMaisVendidos');
 
-        if (window.graficoMaisVendidos) {
+        if (typeof Chart !== 'function') {
+          canvas.style.display = 'none';
+          const fallback = document.getElementById('graficoFallback');
+          fallback.style.display = 'grid';
+          fallback.style.gap = '12px';
+          fallback.innerHTML = produtos.length
+            ? produtos.map(produto => `
+                <div>
+                  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <strong>${produto.nome}</strong><span>${produto.total_vendido} un.</span>
+                  </div>
+                  <div style="height:18px;background:#e2e8f0;border-radius:4px;overflow:hidden;">
+                    <div style="height:100%;width:${Math.max(Number(produto.total_vendido) * 100, 4)}%;max-width:100%;background:#2563eb;"></div>
+                  </div>
+                </div>
+              `).join('')
+            : '<p>Nenhum produto vendido ainda.</p>';
+          return;
+        }
+
+        const ctx = canvas.getContext('2d');
+
+        if (window.graficoMaisVendidos && typeof window.graficoMaisVendidos.destroy === 'function') {
           window.graficoMaisVendidos.destroy();
         }
 
@@ -178,7 +201,7 @@
 
       } catch (erro) {
         console.error('Erro ao carregar relatório:', erro);
-        alert('Erro ao carregar relatório. Verifique se o backend está rodando.');
+        alert(`Erro ao carregar relatório: ${erro.message}`);
       }
     }
 

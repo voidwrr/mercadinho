@@ -21,7 +21,16 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // 3. Rota para BUSCAR os produtos e enviá-los para o ecrã do Caixa
 app.get('/api/produtos', (req, res) => {
-    db.all("SELECT id, nome, preco_venda AS preco, preco_venda, estoque_minimo AS estoque FROM produtos WHERE ativo = 1", [], (err, rows) => {
+    const busca = String(req.query.busca || '').trim();
+    const sql = `
+        SELECT id, nome, unidade, preco_venda, estoque_minimo, saldo_atual
+        FROM vw_estoque_atual
+        WHERE (? = '' OR CAST(id AS TEXT) = ? OR nome LIKE ?)
+        ORDER BY nome
+    `;
+    const termo = `%${busca}%`;
+
+    db.all(sql, [busca, busca, termo], (err, rows) => {
         if (err) {
             console.error("❌ Erro no SQL ao buscar produtos:", err.message);
             return res.status(500).json({ erro: err.message });
@@ -32,47 +41,103 @@ app.get('/api/produtos', (req, res) => {
 
 // 4. Rota para CADASTRAR novos produtos a partir do novo ecrã de Gestão
 app.post('/api/produtos', (req, res) => {
-    const { nome, preco, estoque } = req.body;
-    
-    const sql = `INSERT INTO produtos (nome, preco_venda, estoque_minimo, ativo) VALUES (?, ?, ?, 1)`;
-    
-    db.run(sql, [nome, preco, estoque], function(err) {
+    const { nome, unidade, preco_custo, preco_venda, estoque_minimo, estoque, quantidade, estoque_qtd } = req.body;
+    const qtdInicial = Number(estoque_qtd ?? quantidade ?? estoque ?? 0);
+
+    if (!nome || !Number.isFinite(qtdInicial) || qtdInicial < 0) {
+        return res.status(400).json({ erro: "Nome e quantidade inicial válida são obrigatórios." });
+    }
+
+    const sql = `
+        INSERT INTO produtos (nome, unidade, preco_custo, preco_venda, estoque_minimo, ativo)
+        VALUES (?, ?, ?, ?, ?, 1)
+    `;
+
+    db.run(sql, [nome, unidade || 'un', Number(preco_custo || 0), Number(preco_venda || 0), Number(estoque_minimo || 0)], function(err) {
         if (err) {
             console.error("❌ Erro ao inserir produto:", err.message);
-            return res.status(500).json({ erro: "Erro ao salvar no banco." });
+            return res.status(500).json({ erro: err.message });
         }
-        console.log(`✅ Novo produto cadastrado: ${nome}`);
-        res.json({ mensagem: "Sucesso!", id: this.lastID });
+
+        const produtoId = this.lastID;
+        const responder = (erroEstoque) => {
+            if (erroEstoque) {
+                return res.status(500).json({ erro: erroEstoque.message });
+            }
+            console.log(`✅ Novo produto cadastrado: ${nome}`);
+            res.status(201).json({ mensagem: "Produto cadastrado!", id: produtoId });
+        };
+
+        if (qtdInicial === 0) return responder();
+
+        db.run(
+            `INSERT INTO estoque (produto_id, movimentacao, qtd, obs) VALUES (?, 'compra', ?, 'Entrada de cadastro inicial')`,
+            [produtoId, qtdInicial],
+            responder
+        );
     });
 });
 
 // 5. Rota para registar as vendas e ATUALIZAR O ESTOQUE
 app.post('/api/vendas', (req, res) => {
-    // O req.body traz os dados que o script.js enviou (subtotal, forma_pagamento, itens, etc.)
-    const { itens } = req.body;
+    const { subtotal, desconto, total, forma_pagamento, itens } = req.body;
 
     // Se não houver itens, não há nada a descontar
     if (!itens || itens.length === 0) {
         return res.status(400).json({ erro: "O carrinho está vazio." });
     }
 
-    //  loop por cada item que estava no carrinho do cliente
-    itens.forEach(item => {
-        // Comando SQL para subtrair a quantidade vendida ao estoque atual
-        
-        const sql = `UPDATE produtos SET estoque_minimo = estoque_minimo - ? WHERE id = ?`;
-        
-        // Executa o comando passando a quantidade que o cliente comprou e o ID do produto
-        db.run(sql, [item.quantidade, item.produto_id], (err) => {
-            if (err) {
-                console.error(`❌ Erro ao descontar estoque do produto #${item.produto_id}:`, err.message);
-            } else {
-                console.log(`📉 Estoque atualizado: Vendidas ${item.quantidade} un. do produto #${item.produto_id}`);
-            }
-        });
-    });
+    if (!forma_pagamento) {
+        return res.status(400).json({ erro: "Forma de pagamento é obrigatória." });
+    }
 
-    res.json({ mensagem: "Venda registada e stock atualizado com sucesso no backend!" });
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        db.run(
+            `INSERT INTO vendas (subtotal, desconto, total, forma_pagamento) VALUES (?, ?, ?, ?)`,
+            [Number(subtotal || 0), Number(desconto || 0), Number(total || subtotal || 0), forma_pagamento],
+            function(err) {
+                if (err) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ erro: err.message });
+                }
+
+                const vendaId = this.lastID;
+                const sqlItem = `
+                    INSERT INTO vendas_itens (venda_id, produto_id, qtd, preco, desconto, total)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `;
+                let concluidos = 0;
+                let falhou = false;
+
+                itens.forEach(item => {
+                    const qtd = Number(item.qtd ?? item.quantidade ?? 0);
+                    const preco = Number(item.preco ?? item.preco_unitario ?? 0);
+                    const itemDesconto = Number(item.desconto || 0);
+                    const itemTotal = Number(item.subtotal ?? ((qtd * preco) - itemDesconto));
+
+                    db.run(sqlItem, [vendaId, item.produto_id, qtd, preco, itemDesconto, itemTotal], errItem => {
+                        if (falhou) return;
+                        if (errItem) {
+                            falhou = true;
+                            db.run('ROLLBACK');
+                            return res.status(500).json({ erro: errItem.message });
+                        }
+
+                        concluidos++;
+                        if (concluidos === itens.length) {
+                            db.run('COMMIT', errCommit => {
+                                if (errCommit) {
+                                    return res.status(500).json({ erro: errCommit.message });
+                                }
+                                res.status(201).json({ mensagem: 'Venda concluída!', venda_id: vendaId });
+                            });
+                        }
+                    });
+                });
+            }
+        );
+    });
 });
 
 // 6. Rota para relatórios

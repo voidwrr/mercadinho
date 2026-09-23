@@ -33,6 +33,7 @@
         
         /* Formulário de Cadastro */
         .form-cadastro { display: flex; gap: 15px; margin-bottom: 30px; }
+        .busca-estoque { width: 100%; box-sizing: border-box; margin-bottom: 18px; }
         input { 
             flex: 1; padding: 12px; border: 1px solid #cbd5e1; 
             border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;
@@ -66,6 +67,8 @@
             <button type="submit" class="btn-salvar">➕ Cadastrar</button>
         </form>
 
+        <input type="search" id="buscaEstoque" class="busca-estoque" placeholder="Buscar por nome ou código do produto">
+
         <!-- Tabela do Estoque Atual -->
         <table>
             <thead>
@@ -86,7 +89,8 @@
         // Função para buscar os itens no banco e desenhar a tabela
         async function carregarEstoque() {
             try {
-                const resposta = await fetch('/api/produtos');
+                const busca = document.getElementById('buscaEstoque').value.trim();
+                const resposta = await fetch('/api/produtos?busca=' + encodeURIComponent(busca));
                 if (!resposta.ok) throw new Error('Falha ao carregar produtos');
                 
                 const produtos = await resposta.json();
@@ -157,6 +161,7 @@
 
         // Carrega a tabela assim que a página abre
         carregarEstoque();
+        document.getElementById('buscaEstoque').addEventListener('input', carregarEstoque);
     </script>
 </body>
 </html>
