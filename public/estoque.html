@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Estoque - Mercadinho</title>
     <style>
-        
         body { 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             background-color: #f4f7f6; 
@@ -13,7 +12,7 @@
             color: #333;
         }
         .painel { 
-            max-width: 900px; 
+            max-width: 1100px; 
             margin: auto; 
             background: white; 
             padding: 30px; 
@@ -21,137 +20,290 @@
             box-shadow: 0 8px 24px rgba(0,0,0,0.08); 
         }
         .cabecalho {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; margin-bottom: 25px;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            border-bottom: 2px solid #f0f2f5; 
+            padding-bottom: 15px; 
+            margin-bottom: 25px;
         }
         h1 { margin: 0; color: #2c3e50; font-size: 24px; }
+        h2 { margin: 0 0 15px 0; color: #475b6d; font-size: 18px; }
+        
         .btn-voltar { 
-            text-decoration: none; background: #e2e8f0; color: #4a5568; 
-            padding: 8px 16px; border-radius: 8px; font-weight: bold; transition: 0.2s;
+            text-decoration: none; 
+            background: #e2e8f0; 
+            color: #4a5568; 
+            padding: 8px 16px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            transition: 0.2s;
         }
         .btn-voltar:hover { background: #cbd5e1; }
         
-        /* Formulário de Cadastro */
-        .form-cadastro { display: flex; gap: 15px; margin-bottom: 30px; }
-        .busca-estoque { width: 100%; box-sizing: border-box; margin-bottom: 18px; }
-        input { 
-            flex: 1; padding: 12px; border: 1px solid #cbd5e1; 
-            border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;
+        /* Formulário de Cadastro em Grid */
+        .card-cadastro {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
         }
-        input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
+        .grid-form { 
+            display: grid; 
+            grid-template-columns: repeat( auto-fit, minmax(220px, 1fr) );
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+
+        .campo-grupo {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .campo-grupo label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #475b6d;
+        }
+
+        input, select { 
+            padding: 10px 12px; 
+            border: 1px solid #cbd5e1; 
+            border-radius: 8px; 
+            font-size: 14px; 
+            outline: none; 
+            transition: 0.2s;
+            background: white;
+        }
+
+        input:focus, select:focus { 
+            border-color: #3b82f6; 
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); 
+        }
+
+        .acoes-form {
+            display: flex;
+            justify-content: flex-end;
+        }
+
         .btn-salvar { 
-            background: #1d1152; color: white; border: none; 
-            padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;
+            background: #10b981; 
+            color: white; 
+            border: none; 
+            padding: 12px 28px; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.2s;
+            font-size: 15px;
         }
         .btn-salvar:hover { background: #059669; }
 
+        .busca-estoque { 
+            width: 100%; 
+            box-sizing: border-box; 
+            margin-bottom: 20px; 
+            font-size: 15px;
+            padding: 12px;
+        }
+
         /* Tabela de Produtos */
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #f0f2f5; }
-        th { background-color: #f8fafc; color: #64748b; font-size: 14px; text-transform: uppercase; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #f0f2f5; }
+        th { background-color: #f8fafc; color: #64748b; font-size: 13px; text-transform: uppercase; }
         tr:hover { background-color: #f8fafc; }
+        
+        .badge-alerta {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .badge-codigo {
+            font-family: monospace;
+            background: #e2e8f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
     <div class="painel">
         <div class="cabecalho">
             <h1>📦 Gestão de Estoque</h1>
-            <a href="/caixa.html" class="btn-voltar">🔙 Ir para o Caixa</a>
+            <a href="/caixa.html" class="btn-voltar">🛒 Ir para o Caixa</a>
         </div>
 
-        <!-- Área de Cadastro -->
-        <form id="formCadastro" class="form-cadastro">
-            <input type="text" id="nome" placeholder="Nome do Produto" required>
-            <input type="number" step="0.01" id="preco" placeholder="Preço (Ex: 10.50)" required>
-            <input type="number" id="quantidade" placeholder="Qtd. Estoque" required>
-            <button type="submit" class="btn-salvar">➕ Cadastrar</button>
-        </form>
+        <!-- Formulário Completo de Cadastro -->
+        <div class="card-cadastro">
+            <h2>Cadastrar Novo Produto</h2>
+            <form id="formCadastro">
+                <div class="grid-form">
+                    <div class="campo-grupo">
+                        <label for="codigo_barras">Código de Barras</label>
+                        <input type="text" id="codigo_barras" placeholder="Bipe ou digite o EAN...">
+                    </div>
 
-        <input type="search" id="buscaEstoque" class="busca-estoque" placeholder="Buscar por nome ou código do produto">
+                    <div class="campo-grupo" style="grid-column: span 2;">
+                        <label for="nome">Nome do Produto *</label>
+                        <input type="text" id="nome" placeholder="Ex: Arroz Tio João 5kg" required>
+                    </div>
+
+                    <div class="campo-grupo">
+                        <label for="unidade">Unidade de Medida *</label>
+                        <select id="unidade" required>
+                            <option value="un">Unidade (un)</option>
+                            <option value="cx">Caixa (cx)</option>
+                            <option value="fd">Fardo (fd)</option>
+                            <option value="pct">Pacote (pct)</option>
+                            <option value="kg">Quilo (kg)</option>
+                            <option value="lt">Litro (lt)</option>
+                        </select>
+                    </div>
+
+                    <div class="campo-grupo">
+                        <label for="preco_custo">Preço de Custo (R$)</label>
+                        <input type="number" step="0.01" min="0" id="preco_custo" placeholder="0,00">
+                    </div>
+
+                    <div class="campo-grupo">
+                        <label for="preco_venda">Preço de Venda (R$) *</label>
+                        <input type="number" step="0.01" min="0" id="preco_venda" placeholder="0,00" required>
+                    </div>
+
+                    <div class="campo-grupo">
+                        <label for="estoque_minimo">Estoque Mínimo</label>
+                        <input type="number" step="0.01" min="0" id="estoque_minimo" placeholder="5">
+                    </div>
+
+                    <div class="campo-grupo">
+                        <label for="quantidade">Qtd. Inicial em Estoque</label>
+                        <input type="number" step="0.01" min="0" id="quantidade" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="acoes-form">
+                    <button type="submit" class="btn-salvar">➕ Cadastrar Produto</button>
+                </div>
+            </form>
+        </div>
+
+        <input type="search" id="buscaEstoque" class="busca-estoque" placeholder="🔍 Filtrar lista por nome ou código de barras...">
 
         <!-- Tabela do Estoque Atual -->
         <table>
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>Cód. Barras</th>
                     <th>Produto</th>
-                    <th>Preço Un.</th>
+                    <th>Un.</th>
+                    <th>Preço Venda</th>
                     <th>Em Estoque</th>
+                    <th>Status</th>
                 </tr>
             </thead>
             <tbody id="listaEstoque">
-                <!-- Os produtos vão aparecer aqui ~ atualizados pelo JS -->
+                <!-- Os produtos aparecem aqui -->
             </tbody>
         </table>
     </div>
 
     <script>
-        // Função para buscar os itens no banco e desenhar a tabela
+        let produtosCache = [];
+
+        // Carregar produtos da API
         async function carregarEstoque() {
             try {
-                const busca = document.getElementById('buscaEstoque').value.trim();
-                const resposta = await fetch('/api/produtos?busca=' + encodeURIComponent(busca));
+                const resposta = await fetch('/api/produtos');
                 if (!resposta.ok) throw new Error('Falha ao carregar produtos');
                 
-                const produtos = await resposta.json();
-                const tabela = document.getElementById('listaEstoque');
-                
-                tabela.innerHTML = ''; // Limpa a tabela antes de preencher
-                
-                if (produtos.length === 0) {
-                    tabela.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum produto cadastrado.</td></tr>';
-                    return;
-                }
-
-                produtos.forEach(p => {
-                    // Pega o preço (preco_venda) e o estoque (saldo_atual ou fallback)
-                    const preco = Number(p.preco_venda ?? p.preco ?? 0);
-                    const saldo = p.saldo_atual ?? p.estoque ?? 0;
-                    const unidade = p.unidade || 'un';
-
-                    tabela.innerHTML += `
-                        <tr>
-                            <td>#${p.id}</td>
-                            <td><strong>${p.nome}</strong></td>
-                            <td>R$ ${preco.toFixed(2).replace('.', ',')}</td>
-                            <td>${saldo} ${unidade}</td>
-                        </tr>
-                    `;
-                });
+                produtosCache = await resposta.json();
+                renderizarTabela(produtosCache);
             } catch (erro) {
                 console.error('Erro ao carregar estoque:', erro);
             }
         }
 
-        // Evento de clique no botão de cadastrar
-        document.getElementById('formCadastro').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Impede a página de recarregar
+        // Renderiza as linhas da tabela
+        function renderizarTabela(produtos) {
+            const tabela = document.getElementById('listaEstoque');
+            const termoBusca = document.getElementById('buscaEstoque').value.toLowerCase().trim();
             
-            const nome = document.getElementById('nome').value;
-            const preco_venda = parseFloat(document.getElementById('preco').value);
-            const estoque_qtd = parseFloat(document.getElementById('quantidade').value);
+            tabela.innerHTML = '';
+
+            // Filtragem local por Nome ou Código de Barras
+            const produtosFiltrados = produtos.filter(p => {
+                const nome = (p.nome || '').toLowerCase();
+                const codigo = (p.codigo_barras || '').toLowerCase();
+                return nome.includes(termoBusca) || codigo.includes(termoBusca);
+            });
+
+            if (produtosFiltrados.length === 0) {
+                tabela.innerHTML = '<tr><td colspan="6" style="text-align:center; color: #94a3b8; padding: 20px;">Nenhum produto encontrado.</td></tr>';
+                return;
+            }
+
+            produtosFiltrados.forEach(p => {
+                const precoVenda = Number(p.preco_venda || 0);
+                const saldo = Number(p.saldo_atual || 0);
+                const estoqueMinimo = Number(p.estoque_minimo || 0);
+                const unidade = p.unidade || 'un';
+                const codigoBarras = p.codigo_barras ? `<span class="badge-codigo">${p.codigo_barras}</span>` : '<span style="color:#cbd5e1;">-</span>';
+
+                const estaBaixo = saldo <= estoqueMinimo;
+                const statusBadge = estaBaixo 
+                    ? `<span class="badge-alerta">Estoque Baixo</span>` 
+                    : `<span style="color:#10b981; font-weight:bold;">OK</span>`;
+
+                tabela.innerHTML += `
+                    <tr>
+                        <td>${codigoBarras}</td>
+                        <td><strong>${p.nome}</strong></td>
+                        <td>${unidade}</td>
+                        <td>R$ ${precoVenda.toFixed(2).replace('.', ',')}</td>
+                        <td><strong>${saldo}</strong> ${unidade}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Evento do formulário de cadastro
+        document.getElementById('formCadastro').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const novoProduto = {
+                codigo_barras: document.getElementById('codigo_barras').value,
+                nome: document.getElementById('nome').value,
+                unidade: document.getElementById('unidade').value,
+                preco_custo: parseFloat(document.getElementById('preco_custo').value) || 0,
+                preco_venda: parseFloat(document.getElementById('preco_venda').value) || 0,
+                estoque_minimo: parseFloat(document.getElementById('estoque_minimo').value) || 0,
+                estoque_qtd: parseFloat(document.getElementById('quantidade').value) || 0
+            };
 
             try {
-                // Envia para o servidor (server.js) com os nomes de campos corretos
                 const resposta = await fetch('/api/produtos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        nome,
-                        unidade: 'un',
-                        preco_custo: 0,
-                        preco_venda,
-                        estoque_minimo: 5,
-                        estoque_qtd // ou qtd_inicial dependendo do seu backend
-                    })
+                    body: JSON.stringify(novoProduto)
                 });
 
+                const resultado = await resposta.json();
+
                 if (resposta.ok) {
+                    alert('✅ Produto cadastrado com sucesso!');
                     document.getElementById('formCadastro').reset();
-                    carregarEstoque(); // Recarrega a tabela na hora
+                    carregarEstoque(); // Atualiza a tabela imediatamente
                 } else {
-                    const errData = await resposta.json();
-                    alert('Erro ao cadastrar produto: ' + (errData.erro || 'Verifique o backend'));
+                    alert(`❌ Erro ao cadastrar: ${resultado.erro}`);
                 }
             } catch (erro) {
                 console.error('Erro no cadastro:', erro);
@@ -159,9 +311,13 @@
             }
         });
 
-        // Carrega a tabela assim que a página abre
+        // Evento de filtro no campo de busca
+        document.getElementById('buscaEstoque').addEventListener('input', () => {
+            renderizarTabela(produtosCache);
+        });
+
+        // Carrega inicial
         carregarEstoque();
-        document.getElementById('buscaEstoque').addEventListener('input', carregarEstoque);
     </script>
 </body>
 </html>

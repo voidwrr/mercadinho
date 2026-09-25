@@ -13,7 +13,7 @@
             color: #333;
         }
         .container {
-            max-width: 1000px;
+            max-width: 1050px;
             margin: auto;
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -36,7 +36,7 @@
         }
         .cabecalho {
             display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; margin-bottom: 25px;
+            border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; margin-bottom: 20px;
         }
         h1 { margin: 0; color: #2c3e50; font-size: 24px; }
         h2 { margin-top: 0; border-bottom: 1px solid #475b6d; padding-bottom: 15px; font-size: 20px; }
@@ -44,29 +44,59 @@
         .btn-navegacao { 
             text-decoration: none; background: #e2e8f0; color: #4a5568; 
             padding: 8px 16px; border-radius: 8px; font-weight: bold; transition: 0.2s;
+            margin-left: 5px;
         }
         .btn-navegacao:hover { background: #cbd5e1; }
 
         /* Controles do Caixa */
-        .controles { display: flex; gap: 10px; margin-bottom: 20px; }
+        .secao-busca {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .campo-destaque {
+            border: 2px solid #3b82f6 !important;
+            font-size: 16px !important;
+            font-weight: bold;
+        }
+
+        .controles { display: flex; gap: 10px; }
         select, input { 
             padding: 12px; border: 1px solid #cbd5e1; 
             border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;
         }
-        select { flex: 2; }
-        input[type="number"] { flex: 1; }
+        input[type="text"] { flex: 3; }
+        select { flex: 3; }
+        input[type="number"] { flex: 1; text-align: center; }
         select:focus, input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         
-        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; padding: 12px 24px; }
+        button { border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; padding: 12px 20px; }
         .btn-azul { background: #3b82f6; color: white; }
         .btn-azul:hover { background: #2563eb; }
         .btn-verde { background: #10b981; color: white; width: 100%; font-size: 16px; padding: 15px; margin-top: auto; }
         .btn-verde:hover { background: #059669; }
+        .btn-remover { background: #ef4444; color: white; padding: 6px 12px; font-size: 12px; }
+        .btn-remover:hover { background: #dc2626; }
+
+        .divisor {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 2px 0;
+        }
 
         /* Tabela */
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f0f2f5; }
         th { color: #64748b; font-size: 13px; text-transform: uppercase; }
+        td { vertical-align: middle; }
         
         /* Resumo Lateral */
         .total-destaque { font-size: 36px; color: #10b981; font-weight: bold; text-align: right; margin: 20px 0; }
@@ -79,16 +109,31 @@
         <div class="painel">
             <div class="cabecalho">
                 <h1>🛒 Frente de Caixa</h1>
-                <a href="/estoque.html" class="btn-navegacao">📦 Gestão de Estoque</a>
+                <div>
+                    <a href="/dashboard.html" class="btn-navegacao">📊 Dashboard</a>
+                    <a href="/estoque.html" class="btn-navegacao">📦 Gestão de Estoque</a>
+                </div>
             </div>
 
-            <div class="controles">
-                <select id="produtoSelect">
-                    <option value="">Selecione um produto...</option>
-                    <!-- Produtos via JS -->
-                </select>
-                <input type="number" id="quantidade" value="1" min="1">
-                <button class="btn-azul" onclick="adicionarAoCarrinho()">Adicionar</button>
+            <!-- Área de Entrada de Produtos -->
+            <div class="secao-busca">
+                <!-- Busca por Código de Barras -->
+                <div class="controles">
+                    <input type="text" id="codigoBarrasInput" class="campo-destaque" placeholder="🔍 Bip ou digite o código de barras..." autofocus>
+                    <input type="number" id="qtdBarra" value="1" min="1" title="Quantidade para o código de barras">
+                    <button class="btn-azul" onclick="adicionarPorCodigo()">Buscar</button>
+                </div>
+
+                <div class="divisor">— OU SELECIONE MANUALMENTE —</div>
+
+                <!-- Busca Manual / Select -->
+                <div class="controles">
+                    <select id="produtoSelect">
+                        <option value="">Selecione um produto da lista...</option>
+                    </select>
+                    <input type="number" id="quantidade" value="1" min="1" title="Quantidade manual">
+                    <button class="btn-azul" onclick="adicionarAoCarrinhoManual()">Adicionar</button>
+                </div>
             </div>
 
             <table>
@@ -98,6 +143,7 @@
                         <th>Preço Un.</th>
                         <th>Qtd</th>
                         <th>Subtotal</th>
+                        <th>Ação</th>
                     </tr>
                 </thead>
                 <tbody id="listaCarrinho">
@@ -115,7 +161,7 @@
                 R$ <span id="valorTotal">0,00</span>
             </div>
 
-            <label>Forma de Pagamento:</label>
+            <label for="formaPagamento">Forma de Pagamento:</label>
             <select id="formaPagamento" class="forma-pagamento">
                 <option value="pix">PIX</option>
                 <option value="dinheiro">Dinheiro</option>
@@ -127,7 +173,192 @@
         </div>
     </div>
 
-    
-    <script src="script.js"></script>
+    <!-- Script para controle do Front-End -->
+    <script>
+        let carrinho = [];
+        let produtosLista = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarProdutos();
+            focarCodigoBarras();
+
+            document.getElementById('codigoBarrasInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    adicionarPorCodigo();
+                }
+            });
+        });
+
+        function focarCodigoBarras() {
+            const inputBarra = document.getElementById('codigoBarrasInput');
+            inputBarra.focus();
+            inputBarra.value = '';
+        }
+
+        async function carregarProdutos() {
+            try {
+                const res = await fetch('/api/produtos');
+                produtosLista = await res.json();
+
+                const select = document.getElementById('produtoSelect');
+                select.innerHTML = '<option value="">Selecione um produto da lista...</option>';
+
+                produtosLista.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    const exibeBarra = p.codigo_barras ? ` [${p.codigo_barras}]` : '';
+                    option.textContent = `${p.nome}${exibeBarra} - R$ ${p.preco_venda.toFixed(2)}`;
+                    select.appendChild(option);
+                });
+            } catch (err) {
+                console.error("Erro ao carregar produtos:", err);
+            }
+        }
+
+        async function adicionarPorCodigo() {
+            const input = document.getElementById('codigoBarrasInput');
+            const codigo = input.value.trim();
+            const qtdInput = document.getElementById('qtdBarra');
+            const qtd = parseInt(qtdInput.value) || 1;
+
+            if (!codigo) return;
+
+            try {
+                const res = await fetch(`/api/produtos/codigo/${encodeURIComponent(codigo)}`);
+                
+                if (!res.ok) {
+                    alert("❌ Produto não encontrado pelo código de barras!");
+                    focarCodigoBarras();
+                    return;
+                }
+
+                const produto = await res.json();
+                inserirNoCarrinho(produto, qtd);
+
+                input.value = '';
+                qtdInput.value = 1;
+                focarCodigoBarras();
+
+            } catch (err) {
+                console.error("Erro ao buscar produto por código:", err);
+                alert("Erro ao comunicar com o servidor.");
+            }
+        }
+
+        function adicionarAoCarrinhoManual() {
+            const select = document.getElementById('produtoSelect');
+            const produtoId = parseInt(select.value);
+            const qtdInput = document.getElementById('quantidade');
+            const qtd = parseInt(qtdInput.value) || 1;
+
+            if (!produtoId) {
+                alert("Selecione um produto da lista!");
+                return;
+            }
+
+            const produto = produtosLista.find(p => p.id === produtoId);
+            if (produto) {
+                inserirNoCarrinho(produto, qtd);
+                select.value = '';
+                qtdInput.value = 1;
+                focarCodigoBarras();
+            }
+        }
+
+        function inserirNoCarrinho(produto, quantidade) {
+            const itemExistente = carrinho.find(item => item.produto_id === produto.id);
+
+            if (itemExistente) {
+                itemExistente.qtd += quantidade;
+                itemExistente.total = itemExistente.qtd * itemExistente.preco;
+            } else {
+                carrinho.push({
+                    produto_id: produto.id,
+                    nome: produto.nome,
+                    preco: produto.preco_venda,
+                    qtd: quantidade,
+                    total: produto.preco_venda * quantidade
+                });
+            }
+
+            atualizarTabelaCarrinho();
+        }
+
+        function removerDoCarrinho(index) {
+            carrinho.splice(index, 1);
+            atualizarTabelaCarrinho();
+            focarCodigoBarras();
+        }
+
+        function atualizarTabelaCarrinho() {
+            const tbody = document.getElementById('listaCarrinho');
+            tbody.innerHTML = '';
+
+            let totalGeral = 0;
+            let totalItens = 0;
+
+            carrinho.forEach((item, index) => {
+                totalGeral += item.total;
+                totalItens += item.qtd;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${item.nome}</strong></td>
+                    <td>R$ ${item.preco.toFixed(2)}</td>
+                    <td>${item.qtd}</td>
+                    <td>R$ ${item.total.toFixed(2)}</td>
+                    <td>
+                        <button class="btn-remover" onclick="removerDoCarrinho(${index})">❌</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('valorTotal').innerText = totalGeral.toFixed(2).replace('.', ',');
+            document.getElementById('qtdItens').innerText = totalItens;
+        }
+
+        async function finalizarVenda() {
+            if (carrinho.length === 0) {
+                alert("O carrinho está vazio!");
+                return;
+            }
+
+            const formaPagamento = document.getElementById('formaPagamento').value;
+            const subtotal = carrinho.reduce((acc, item) => acc + item.total, 0);
+
+            const dadosVenda = {
+                subtotal: subtotal,
+                desconto: 0,
+                total: subtotal,
+                forma_pagamento: formaPagamento,
+                itens: carrinho
+            };
+
+            try {
+                const res = await fetch('/api/vendas', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dadosVenda)
+                });
+
+                const resultado = await res.json();
+
+                if (res.ok) {
+                    alert(`✅ Venda #${resultado.venda_id} concluída com sucesso!`);
+                    carrinho = [];
+                    atualizarTabelaCarrinho();
+                    carregarProdutos();
+                    focarCodigoBarras();
+                } else {
+                    alert(`❌ Erro ao finalizar venda: ${resultado.erro}`);
+                }
+            } catch (err) {
+                console.error("Erro na requisição de venda:", err);
+                alert("Erro ao conectar com o servidor.");
+            }
+        }
+    </script>
 </body>
 </html>

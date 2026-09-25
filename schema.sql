@@ -1,7 +1,8 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE "produtos" (
-    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "id" INTEGER PRIMARY KEY,
+    "codigo_barras" TEXT UNIQUE,
     "nome" TEXT NOT NULL,
     "unidade" TEXT NOT NULL CHECK("unidade" IN ('un', 'cx', 'fd', 'pct', 'kg', 'lt')),
     "preco_custo" REAL DEFAULT 0.0,
@@ -12,7 +13,7 @@ CREATE TABLE "produtos" (
 );
 
 CREATE TABLE "vendas" (
-    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "id" INTEGER PRIMARY KEY,
     "data" DATETIME DEFAULT CURRENT_TIMESTAMP,
     "subtotal" REAL NOT NULL,
     "desconto" REAL NOT NULL DEFAULT 0.0,
@@ -21,7 +22,7 @@ CREATE TABLE "vendas" (
 );
 
 CREATE TABLE "estoque" (
-    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "id" INTEGER PRIMARY KEY,
     "produto_id" INTEGER NOT NULL,
     "venda_id" INTEGER,
     "movimentacao" TEXT CHECK("movimentacao" IN ('compra', 'venda', 'ajuste', 'estorno')),
@@ -33,7 +34,7 @@ CREATE TABLE "estoque" (
 );
 
 CREATE TABLE "vendas_itens" (
-    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+    "id" INTEGER PRIMARY KEY,
     "venda_id" INTEGER NOT NULL,
     "produto_id" INTEGER NOT NULL,
     "qtd" REAL NOT NULL,
@@ -58,7 +59,7 @@ FROM "vw_estoque_atual"
 WHERE "saldo_atual" <= "estoque_minimo";
 
 CREATE VIEW "vw_produtos_ativo" AS
-SELECT "id", "nome", "unidade", "preco_custo", "preco_venda", "estoque_minimo", "criado_em"
+SELECT "id", "codigo_barras", "nome", "unidade", "preco_custo", "preco_venda", "estoque_minimo", "criado_em"
 FROM "produtos"
 WHERE "ativo" = 1;
 

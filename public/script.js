@@ -1,28 +1,38 @@
 let carrinho = [];
 let totalVenda = 0;
+let produtosCache = [];
 
 // 1. Busca os produtos no banco de dados assim que a tela abre
-document.addEventListener("DOMContentLoaded", carregarProdutos);
+document.addEventListener("DOMContentLoaded", () => {
+    carregarProdutos();
+    configurarEventosTeclado();
+});
 
 async function carregarProdutos() {
     try {
         const resposta = await fetch('/api/produtos');
-        const produtos = await resposta.json();
+        if (!resposta.ok) throw new Error('Falha ao carregar produtos');
         
+        produtosCache = await resposta.json();
         const select = document.getElementById("produtoSelect");
         
         // Limpa a lista atual
-        select.innerHTML = '<option value="">Selecione um produto...</option>';
+        select.innerHTML = '<option value="">Selecione ou bip o produto...</option>';
         
-        // Preenche com os produtos reais e o saldo atual
-        produtos.forEach(prod => {
+        // Preenche com os produtos reais, código de barras e o saldo atual
+        produtosCache.forEach(prod => {
             const option = document.createElement("option");
             option.value = prod.id;
             option.setAttribute("data-preco", prod.preco_venda);
             option.setAttribute("data-estoque", prod.saldo_atual);
+            option.setAttribute("data-codigo", prod.codigo_barras || '');
+            option.setAttribute("data-unidade", prod.unidade || 'un');
             
-            // Exibe Nome, Preço e Estoque Disponível
-            option.innerText = `${prod.nome} (Estoque: ${prod.saldo_atual} ${prod.unidade}) - R$ ${prod.preco_venda.toFixed(2).replace('.', ',')}`;
+            const codigoTexto = prod.codigo_barras ? `[${prod.codigo_barras}] ` : '';
+            const saldoTexto = `(Estoque: ${prod.saldo_atual} ${prod.unidade || 'un'})`;
+            const precoTexto = `R$ ${Number(prod.preco_venda).toFixed(2).replace('.', ',')}`;
+            
+            option.innerText = `${codigoTexto}${prod.nome} ${saldoTexto} - ${precoTexto}`;
             select.appendChild(option);
         });
     } catch (erro) {
@@ -31,7 +41,7 @@ async function carregarProdutos() {
     }
 }
 
-// 2. Adiciona item no carrinho
+// 2. Adiciona item no carrinho (Suporta seleção ou leitor de código de barras)
 function adicionarAoCarrinho() {
     const select = document.getElementById("produtoSelect");
     const quantidadeInput = document.getElementById("quantidade");
@@ -44,10 +54,14 @@ function adicionarAoCarrinho() {
         return;
     }
 
-    const nomeProduto = selectedOption.text.split(" (Estoque:")[0];
     const preco = parseFloat(selectedOption.getAttribute("data-preco"));
     const estoqueDisponivel = parseFloat(selectedOption.getAttribute("data-estoque"));
+    const unidade = selectedOption.getAttribute("data-unidade");
     const quantidade = parseFloat(quantidadeInput.value);
+
+    // Tratamento para extrair apenas o nome limpo do produto
+    const prodEncontrado = produtosCache.find(p => p.id == idProduto);
+    const nomeProduto = prodEncontrado ? prodEncontrado.nome : selectedOption.text.split(" (Estoque:")[0];
 
     if (isNaN(quantidade) || quantidade <= 0) {
         alert("A quantidade precisa ser maior que zero!");
@@ -60,7 +74,7 @@ function adicionarAoCarrinho() {
 
     // Validação de limite de estoque
     if (qtdTotalDesejada > estoqueDisponivel) {
-        alert(`Estoque insuficiente! Disponível: ${estoqueDisponivel}`);
+        alert(`Estoque insuficiente! Disponível: ${estoqueDisponivel} ${unidade}`);
         return;
     }
 
@@ -72,8 +86,9 @@ function adicionarAoCarrinho() {
         carrinho.push({
             produto_id: Number(idProduto),
             nome: nomeProduto,
-            qtd: quantidade,          // Compatível com o campo da API e do Banco
-            preco: preco,             // Compatível com o campo da API e do Banco
+            unidade: unidade,
+            qtd: quantidade,
+            preco: preco,
             desconto: 0,
             subtotal: subtotal
         });
@@ -81,14 +96,17 @@ function adicionarAoCarrinho() {
 
     atualizarTela();
     
-    // Reseta os campos do formulário
+    // Reseta os campos do formulário para a próxima leitura/digitação
     quantidadeInput.value = 1;
     select.value = "";
+    select.focus();
 }
 
-// 3. Atualiza o visual da tabela e os totais
+// 3. Atualiza a exibição da tabela e o cálculo total
 function atualizarTela() {
     const tbody = document.getElementById("listaCarrinho");
+    if (!tbody) return;
+
     tbody.innerHTML = ""; 
     totalVenda = 0;
 
@@ -97,19 +115,22 @@ function atualizarTela() {
 
         const tr = document.createElement("tr");
         tr.innerHTML = `
-            <td>${item.nome}</td>
+            <td><strong>${item.nome}</strong></td>
             <td>R$ ${item.preco.toFixed(2).replace('.', ',')}</td>
-            <td>${item.qtd}</td>
-            <td>R$ ${item.subtotal.toFixed(2).replace('.', ',')}</td>
+            <td>${item.qtd} ${item.unidade}</td>
+            <td><strong>R$ ${item.subtotal.toFixed(2).replace('.', ',')}</strong></td>
             <td>
-                <button type="button" onclick="removerDoCarrinho(${index})" style="color: red; cursor: pointer;">❌</button>
+                <button type="button" onclick="removerDoCarrinho(${index})" style="color: #ef4444; border: none; background: none; cursor: pointer; font-size: 16px;">🗑️</button>
             </td>
         `;
         tbody.appendChild(tr);
     });
 
-    document.getElementById("qtdItens").innerText = carrinho.length;
-    document.getElementById("valorTotal").innerText = totalVenda.toFixed(2).replace('.', ',');
+    const elQtd = document.getElementById("qtdItens");
+    const elTotal = document.getElementById("valorTotal");
+
+    if (elQtd) elQtd.innerText = carrinho.length;
+    if (elTotal) elTotal.innerText = totalVenda.toFixed(2).replace('.', ',');
 }
 
 // 4. Remove um item individual do carrinho
@@ -154,7 +175,7 @@ async function finalizarVenda() {
             alert(`✅ Venda #${resultado.venda_id} finalizada com sucesso!`);
             carrinho = []; 
             atualizarTela(); 
-            carregarProdutos(); // Recarrega os produtos para atualizar o saldo do estoque no select
+            carregarProdutos(); // Atualiza o saldo dos produtos no select
         } else {
             alert(`❌ Erro: ${resultado.erro || "Erro ao registrar a venda."}`);
         }
@@ -162,4 +183,27 @@ async function finalizarVenda() {
         alert("❌ Erro ao conectar com o servidor.");
         console.error(erro);
     }
+}
+
+// 6. Configuração de Atalhos e Leitor de Código de Barras
+function configurarEventosTeclado() {
+    const select = document.getElementById("produtoSelect");
+    const quantidadeInput = document.getElementById("quantidade");
+
+    if (quantidadeInput) {
+        quantidadeInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                adicionarAoCarrinho();
+            }
+        });
+    }
+
+    // Atalhos globais
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "F9") {
+            e.preventDefault();
+            finalizarVenda();
+        }
+    });
 }
