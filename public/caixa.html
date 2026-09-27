@@ -46,6 +46,7 @@
             padding: 8px 16px; border-radius: 8px; font-weight: bold; transition: 0.2s;
         }
         .btn-navegacao:hover { background: #cbd5e1; }
+        .links-navegacao { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 
         /* Controles do Caixa */
         .controles { display: flex; gap: 10px; margin-bottom: 20px; }
@@ -83,7 +84,10 @@
         <div class="painel">
             <div class="cabecalho">
                 <h1>🛒 Frente de Caixa</h1>
-                <a href="/estoque.html" class="btn-navegacao">📦 Gestão de Estoque</a>
+                <nav class="links-navegacao">
+                    <a href="/dashboard.html" class="btn-navegacao">📊 Dashboard</a>
+                    <a href="/estoque.html" class="btn-navegacao">📦 Gestão de Estoque</a>
+                </nav>
             </div>
 
             <div class="controles">
