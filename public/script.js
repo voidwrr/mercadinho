@@ -1,8 +1,23 @@
 let carrinho = [];
 let totalVenda = 0;
 
-// 1. Busca os produtos no banco de dados assim que a tela abre
-document.addEventListener("DOMContentLoaded", carregarProdutos);
+// 1. Prepara o caixa assim que a tela abre
+document.addEventListener("DOMContentLoaded", () => {
+    carregarProdutos();
+    configurarComprovante();
+});
+
+function configurarComprovante() {
+    const opcaoComprovante = document.getElementById("enviarComprovante");
+    const campoTelefone = document.getElementById("campoTelefoneComprovante");
+    const telefone = document.getElementById("telefoneComprovante");
+
+    opcaoComprovante.addEventListener("change", () => {
+        campoTelefone.hidden = !opcaoComprovante.checked;
+        telefone.required = opcaoComprovante.checked;
+        if (!opcaoComprovante.checked) telefone.value = "";
+    });
+}
 
 async function carregarProdutos() {
     try {
@@ -133,6 +148,24 @@ async function finalizarVenda() {
         return;
     }
 
+    const enviarComprovante = document.getElementById("enviarComprovante").checked;
+    const telefone = document.getElementById("telefoneComprovante").value.replace(/\D/g, "");
+    let telefoneWhatsApp = "";
+    let janelaWhatsApp = null;
+
+    if (enviarComprovante) {
+        if (![10, 11, 12, 13].includes(telefone.length) || (telefone.length > 11 && !telefone.startsWith("55"))) {
+            alert("Informe um telefone válido com DDD.");
+            return;
+        }
+
+        telefoneWhatsApp = telefone.length <= 11 ? `55${telefone}` : telefone;
+        janelaWhatsApp = window.open("about:blank", "_blank");
+    }
+
+    const itensVenda = [...carrinho];
+    const totalFinal = totalVenda;
+
     const dadosVenda = {
         subtotal: totalVenda,
         desconto: 0,
@@ -151,14 +184,49 @@ async function finalizarVenda() {
         const resultado = await resposta.json();
 
         if (resposta.ok) {
+            if (enviarComprovante) {
+                const nomesPagamento = {
+                    pix: "PIX",
+                    dinheiro: "Dinheiro",
+                    cartao_credito: "Cartão de crédito",
+                    cartao_debito: "Cartão de débito"
+                };
+                const linhasItens = itensVenda.map(item =>
+                    `${item.qtd}x ${item.nome} - R$ ${item.subtotal.toFixed(2).replace(".", ",")}`
+                );
+                const mensagem = [
+                    "Comprovante informativo da compra",
+                    `Venda #${resultado.venda_id}`,
+                    "",
+                    ...linhasItens,
+                    "",
+                    `Total: R$ ${totalFinal.toFixed(2).replace(".", ",")}`,
+                    `Pagamento: ${nomesPagamento[formaPagamento] || formaPagamento}`
+                ].join("\n");
+                const urlWhatsApp = `https://wa.me/${telefoneWhatsApp}?text=${encodeURIComponent(mensagem)}`;
+
+                if (janelaWhatsApp) {
+                    janelaWhatsApp.location.href = urlWhatsApp;
+                } else {
+                    window.location.href = urlWhatsApp;
+                }
+            }
+
             alert(`✅ Venda #${resultado.venda_id} finalizada com sucesso!`);
             carrinho = []; 
             atualizarTela(); 
+            document.getElementById("enviarComprovante").checked = false;
+            document.getElementById("campoTelefoneComprovante").hidden = true;
+            const telefoneComprovante = document.getElementById("telefoneComprovante");
+            telefoneComprovante.value = "";
+            telefoneComprovante.required = false;
             carregarProdutos(); // Recarrega os produtos para atualizar o saldo do estoque no select
         } else {
+            if (janelaWhatsApp) janelaWhatsApp.close();
             alert(`❌ Erro: ${resultado.erro || "Erro ao registrar a venda."}`);
         }
     } catch (erro) {
+        if (janelaWhatsApp) janelaWhatsApp.close();
         alert("❌ Erro ao conectar com o servidor.");
         console.error(erro);
     }

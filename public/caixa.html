@@ -71,6 +71,10 @@
         /* Resumo Lateral */
         .total-destaque { font-size: 36px; color: #10b981; font-weight: bold; text-align: right; margin: 20px 0; }
         .forma-pagamento { width: 100%; margin-bottom: 20px; background: white; color: #333; }
+        .opcao-comprovante { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 14px; }
+        .opcao-comprovante input { width: auto; margin: 0; }
+        .telefone-comprovante { margin-bottom: 20px; }
+        .telefone-comprovante input { width: 100%; box-sizing: border-box; }
     </style>
 </head>
 <body>
@@ -122,6 +126,15 @@
                 <option value="cartao_credito">Cartão de Crédito</option>
                 <option value="cartao_debito">Cartão de Débito</option>
             </select>
+
+            <label class="opcao-comprovante">
+                <input type="checkbox" id="enviarComprovante">
+                Cliente deseja receber o comprovante pelo WhatsApp
+            </label>
+            <div id="campoTelefoneComprovante" class="telefone-comprovante" hidden>
+                <label for="telefoneComprovante">Telefone com DDD:</label>
+                <input type="tel" id="telefoneComprovante" autocomplete="tel" placeholder="(11) 99999-9999">
+            </div>
 
             <button class="btn-verde" onclick="finalizarVenda()">Finalizar Venda</button>
         </div>
