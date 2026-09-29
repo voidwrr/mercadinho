@@ -1,138 +1,402 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Estoque - Mercadinho</title>
     <style>
-        
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            background-color: #f4f7f6; 
-            margin: 0; 
-            padding: 40px 20px; 
-            color: #333;
+        :root {
+            color-scheme: dark;
+            --page: #111214;
+            --surface: #1a1c1f;
+            --surface-raised: #24272b;
+            --line: #383b40;
+            --text: #e2eaf6;
+            --muted: #aab9d0;
+            --accent: #93b1ff;
+            --accent-strong: #426bd6;
+            --danger: #ff858e;
+            --input: #171f2d;
         }
-        .painel { 
-            max-width: 900px; 
-            margin: auto; 
-            background: white; 
-            padding: 30px; 
-            border-radius: 12px; 
-            box-shadow: 0 8px 24px rgba(0,0,0,0.08); 
+        [data-theme="light"] {
+            color-scheme: light;
+            --page: #f1f4fb;
+            --surface: #ffffff;
+            --surface-raised: #f5f7fc;
+            --line: #dce4ef;
+            --text: #3d5572;
+            --muted: #6b7f9b;
+            --accent: #426bd6;
+            --accent-strong: #3158bd;
+            --danger: #c64e5c;
+            --input: #ffffff;
         }
-        .cabecalho {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 2px solid #f0f2f5; padding-bottom: 15px; margin-bottom: 25px;
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 32px 20px 56px;
+            background-color: var(--page);
+            background-image: linear-gradient(rgba(66, 107, 214, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(66, 107, 214, .035) 1px, transparent 1px);
+            background-size: 32px 32px;
+            color: var(--text);
+            font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
+            transition: background-color .2s, color .2s;
         }
-        h1 { margin: 0; color: #2c3e50; font-size: 24px; }
-        .btn-voltar { 
-            text-decoration: none; background: #e2e8f0; color: #4a5568; 
-            padding: 8px 16px; border-radius: 8px; font-weight: bold; transition: 0.2s;
+        .painel { max-width: 1160px; margin: auto; }
+        .cabecalho { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 28px; }
+        .titulo-linha { display: flex; align-items: center; gap: 14px; }
+        .marca { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); color: var(--accent); font-size: 23px; }
+        .sobretitulo { margin: 0 0 4px; color: var(--accent); font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; }
+        h1 { margin: 0; font-size: 25px; }
+        .acoes-topo { display: flex; align-items: center; gap: 9px; }
+        .btn, .btn-tema { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; transition: border-color .16s, transform .16s, background .16s; }
+        .btn:hover, .btn-tema:hover { border-color: var(--accent); transform: translateY(-1px); }
+        .secao { margin-bottom: 20px; padding: 22px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); }
+        .secao-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 17px; }
+        h2 { margin: 0; font-size: 17px; }
+        .nota { color: var(--muted); font-size: 12px; }
+        .form-cadastro { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; }
+        input { width: 100%; min-width: 0; min-height: 42px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; outline: none; background: var(--input); color: var(--text); font: inherit; font-size: 14px; }
+        input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+        .btn-salvar { border-color: var(--accent-strong); background: var(--accent-strong); color: #ffffff; }
+        .barra-filtro { display: flex; align-items: center; gap: 14px; margin: 23px 0 12px; }
+        .busca-estoque { max-width: 430px; }
+        .resultado-busca { color: var(--muted); font-size: 12px; }
+        .abas-produtos { display: flex; gap: 5px; margin: 8px 0 16px; border-bottom: 1px solid var(--line); }
+        .aba-produtos { padding: 9px 12px; border: 0; border-bottom: 2px solid transparent; border-radius: 5px 5px 0 0; background: transparent; color: var(--muted); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .aba-produtos:hover { color: var(--accent); }
+        .aba-produtos.ativa { border-bottom-color: var(--accent); color: var(--accent); }
+        .painel-aba[hidden] { display: none; }
+        .tabela-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 7px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 12px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+        th { background: var(--surface-raised); color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+        td { font-size: 13px; }
+        tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:nth-child(even) { background: var(--surface-raised); }
+        tbody tr:hover { background: var(--surface-raised); }
+        .produto-nome { color: var(--text); font-weight: 700; }
+        .codigo { color: var(--muted); font-variant-numeric: tabular-nums; }
+        .estoque-baixo { color: var(--danger); }
+        .btn-desativar { min-height: 30px; padding: 0 9px; border: 1px solid color-mix(in srgb, var(--danger) 42%, var(--line)); border-radius: 5px; background: transparent; color: var(--danger); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+        .btn-desativar:hover { background: color-mix(in srgb, var(--danger) 10%, transparent); }
+        .btn-reativar { min-height: 30px; padding: 0 10px; border: 1px solid var(--accent); border-radius: 5px; background: var(--accent); color: #ffffff; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+        .btn-reativar:hover { border-color: var(--accent-strong); background: var(--accent-strong); }
+        .vazio { padding: 24px; color: var(--muted); text-align: center; }
+        .relatorios { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .relatorios .secao { min-width: 0; margin: 0; padding: 19px; }
+        .relatorios .secao:first-child { border-top: 3px solid var(--accent); }
+        .relatorios .secao:last-child { border-top: 3px solid #e59a3b; }
+        .relatorios .tabela-wrap { border: 0; border-radius: 0; }
+        .relatorios th, .relatorios td { padding: 10px 8px; }
+        .relatorios th:first-child, .relatorios td:first-child { padding-left: 0; }
+        #mensagem { min-height: 18px; margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+        #mensagem.erro { color: var(--danger); }
+        @media (max-width: 760px) {
+            body { padding: 22px 14px 36px; }
+            .cabecalho { align-items: flex-start; }
+            .acoes-topo { flex-direction: column-reverse; align-items: stretch; }
+            .form-cadastro { grid-template-columns: 1fr 1fr; }
+            .form-cadastro input:first-child { grid-column: 1 / -1; }
+            .relatorios { grid-template-columns: 1fr; }
         }
-        .btn-voltar:hover { background: #cbd5e1; }
-        
-        /* Formulário de Cadastro */
-        .form-cadastro { display: flex; gap: 15px; margin-bottom: 30px; }
-        .busca-estoque { width: 100%; box-sizing: border-box; margin-bottom: 18px; }
-        input { 
-            flex: 1; padding: 12px; border: 1px solid #cbd5e1; 
-            border-radius: 8px; font-size: 15px; outline: none; transition: 0.2s;
+        @media (max-width: 480px) {
+            .cabecalho { flex-direction: column; }
+            .acoes-topo { width: 100%; flex-direction: row; }
+            .acoes-topo > * { flex: 1; }
+            .secao { padding: 16px; }
+            .secao-topo { align-items: flex-start; flex-direction: column; }
+            .form-cadastro { grid-template-columns: 1fr; }
+            .form-cadastro input:first-child { grid-column: auto; }
+            .btn-salvar { min-height: 42px; }
+            .barra-filtro { align-items: stretch; flex-direction: column; gap: 7px; }
         }
-        input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .btn-salvar { 
-            background: #1d1152; color: white; border: none; 
-            padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;
-        }
-        .btn-salvar:hover { background: #059669; }
-
-        /* Tabela de Produtos */
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #f0f2f5; }
-        th { background-color: #f8fafc; color: #64748b; font-size: 14px; text-transform: uppercase; }
-        tr:hover { background-color: #f8fafc; }
     </style>
 </head>
 <body>
     <div class="painel">
         <div class="cabecalho">
-            <h1>📦 Gestão de Estoque</h1>
-            <a href="/caixa.html" class="btn-voltar">🔙 Ir para o Caixa</a>
+            <div class="titulo-linha">
+                <div class="marca" aria-hidden="true">▦</div>
+                <div>
+                    <p class="sobretitulo">Mercadinho / Operação</p>
+                    <h1>Estoque</h1>
+                </div>
+            </div>
+            <div class="acoes-topo">
+                <button type="button" id="alternarTema" class="btn-tema" aria-pressed="false">☾ Tema escuro</button>
+                <a href="/caixa.html" class="btn">Ir para o caixa →</a>
+            </div>
         </div>
 
-        <!-- Área de Cadastro -->
-        <form id="formCadastro" class="form-cadastro">
-            <input type="text" id="nome" placeholder="Nome do Produto" required>
-            <input type="number" step="0.01" id="preco" placeholder="Preço (Ex: 10.50)" required>
-            <input type="number" id="quantidade" placeholder="Qtd. Estoque" required>
-            <button type="submit" class="btn-salvar">➕ Cadastrar</button>
-        </form>
+        <section class="secao">
+            <div class="secao-topo">
+                <h2>Novo produto</h2>
+                <span class="nota">Cadastre o item e a quantidade inicial</span>
+            </div>
+            <form id="formCadastro" class="form-cadastro">
+                <input type="text" id="nome" placeholder="Nome do produto" required>
+                <input type="number" id="preco" min="0" step="0.01" placeholder="Preço de venda" required>
+                <input type="number" id="quantidade" min="0" step="any" placeholder="Estoque inicial" required>
+                <button type="submit" class="btn btn-salvar">Cadastrar produto</button>
+            </form>
+        </section>
 
-        <input type="search" id="buscaEstoque" class="busca-estoque" placeholder="Buscar por nome ou código do produto">
+        <section class="secao">
+            <div class="secao-topo">
+                <h2>Produtos</h2>
+                <span class="nota">Desativar preserva o histórico e permite reativar depois</span>
+            </div>
+            <div class="abas-produtos" role="tablist" aria-label="Situação dos produtos">
+                <button type="button" id="abaAtivos" class="aba-produtos ativa" role="tab" aria-selected="true" aria-controls="painelAtivos">Ativos</button>
+                <button type="button" id="abaDesativados" class="aba-produtos" role="tab" aria-selected="false" aria-controls="painelDesativados">Desativados recentes</button>
+            </div>
+            <div id="painelAtivos" class="painel-aba" role="tabpanel" aria-labelledby="abaAtivos">
+                <div class="barra-filtro">
+                    <input type="search" id="buscaEstoque" class="busca-estoque" placeholder="Buscar por nome ou código">
+                    <span id="resultadoBusca" class="resultado-busca"></span>
+                </div>
+                <div class="tabela-wrap">
+                    <table>
+                        <thead><tr><th>Código</th><th>Produto</th><th>Preço un.</th><th>Em estoque</th><th>Ação</th></tr></thead>
+                        <tbody id="listaEstoque"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="painelDesativados" class="painel-aba" role="tabpanel" aria-labelledby="abaDesativados" hidden>
+                <p class="nota">Os 20 desativados mais recentemente aparecem primeiro. Produtos antigos podem não ter data registrada.</p>
+                <div class="tabela-wrap">
+                    <table>
+                        <thead><tr><th>Código</th><th>Produto</th><th>Desativado em</th><th>Ação</th></tr></thead>
+                        <tbody id="listaDesativados"></tbody>
+                    </table>
+                </div>
+            </div>
+            <p id="mensagem" role="status" aria-live="polite"></p>
+        </section>
 
-        <!-- Tabela do Estoque Atual -->
-        <table>
-            <thead>
-                <tr>
-                    <th>Código</th>
-                    <th>Produto</th>
-                    <th>Preço Un.</th>
-                    <th>Em Estoque</th>
-                </tr>
-            </thead>
-            <tbody id="listaEstoque">
-                <!-- Os produtos vão aparecer aqui ~ atualizados pelo JS -->
-            </tbody>
-        </table>
+        <div class="relatorios">
+            <section class="secao">
+                <div class="secao-topo">
+                    <h2>Menor saída</h2>
+                    <span class="nota">Últimos 30 dias</span>
+                </div>
+                <div class="tabela-wrap">
+                    <table>
+                        <thead><tr><th>Produto</th><th>Vendido</th><th>Saldo</th></tr></thead>
+                        <tbody id="listaMenosVendidos"></tbody>
+                    </table>
+                </div>
+            </section>
+            <section class="secao">
+                <div class="secao-topo">
+                    <h2>Produtos parados</h2>
+                    <span class="nota">Nenhuma venda em 30 dias</span>
+                </div>
+                <div class="tabela-wrap">
+                    <table>
+                        <thead><tr><th>Produto</th><th>Saldo</th></tr></thead>
+                        <tbody id="listaParados"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
     </div>
 
     <script>
-        // Função para buscar os itens no banco e desenhar a tabela
+        const raiz = document.documentElement;
+        const temaSalvo = localStorage.getItem('estoque-tema-v2');
+        const botaoTema = document.getElementById('alternarTema');
+
+        function aplicarTema(tema) {
+            raiz.dataset.theme = tema;
+            botaoTema.textContent = tema === 'dark' ? '☀ Tema claro' : '☾ Tema escuro';
+            botaoTema.setAttribute('aria-pressed', String(tema === 'dark'));
+        }
+
+        aplicarTema(temaSalvo === 'dark' ? 'dark' : 'light');
+        botaoTema.addEventListener('click', () => {
+            const proximoTema = raiz.dataset.theme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('estoque-tema-v2', proximoTema);
+            aplicarTema(proximoTema);
+        });
+
+        function definirMensagem(texto, erro = false) {
+            const mensagem = document.getElementById('mensagem');
+            mensagem.textContent = texto;
+            mensagem.classList.toggle('erro', erro);
+        }
+
+        function alternarAbaProdutos(aba) {
+            const mostrarAtivos = aba === 'ativos';
+            document.getElementById('abaAtivos').classList.toggle('ativa', mostrarAtivos);
+            document.getElementById('abaAtivos').setAttribute('aria-selected', String(mostrarAtivos));
+            document.getElementById('abaDesativados').classList.toggle('ativa', !mostrarAtivos);
+            document.getElementById('abaDesativados').setAttribute('aria-selected', String(!mostrarAtivos));
+            document.getElementById('painelAtivos').hidden = !mostrarAtivos;
+            document.getElementById('painelDesativados').hidden = mostrarAtivos;
+        }
+
+        function celula(linha, texto, classe = '') {
+            const elemento = document.createElement('td');
+            elemento.textContent = texto;
+            if (classe) elemento.className = classe;
+            linha.appendChild(elemento);
+            return elemento;
+        }
+
+        function mostrarVazio(tabela, colunas, texto) {
+            const linha = document.createElement('tr');
+            const coluna = document.createElement('td');
+            coluna.colSpan = colunas;
+            coluna.className = 'vazio';
+            coluna.textContent = texto;
+            linha.appendChild(coluna);
+            tabela.replaceChildren(linha);
+        }
+
         async function carregarEstoque() {
             try {
                 const busca = document.getElementById('buscaEstoque').value.trim();
                 const resposta = await fetch('/api/produtos?busca=' + encodeURIComponent(busca));
                 if (!resposta.ok) throw new Error('Falha ao carregar produtos');
-                
                 const produtos = await resposta.json();
                 const tabela = document.getElementById('listaEstoque');
-                
-                tabela.innerHTML = ''; // Limpa a tabela antes de preencher
-                
+                tabela.replaceChildren();
+                document.getElementById('resultadoBusca').textContent = `${produtos.length} produto${produtos.length === 1 ? '' : 's'}`;
+
                 if (produtos.length === 0) {
-                    tabela.innerHTML = '<tr><td colspan="4" style="text-align:center;">Nenhum produto cadastrado.</td></tr>';
+                    mostrarVazio(tabela, 5, 'Nenhum produto ativo encontrado.');
                     return;
                 }
 
                 produtos.forEach(p => {
-                    // Pega o preço (preco_venda) e o estoque (saldo_atual ou fallback)
                     const preco = Number(p.preco_venda ?? p.preco ?? 0);
                     const saldo = p.saldo_atual ?? p.estoque ?? 0;
                     const unidade = p.unidade || 'un';
-
-                    tabela.innerHTML += `
-                        <tr>
-                            <td>#${p.id}</td>
-                            <td><strong>${p.nome}</strong></td>
-                            <td>R$ ${preco.toFixed(2).replace('.', ',')}</td>
-                            <td>${saldo} ${unidade}</td>
-                        </tr>
-                    `;
+                    const linha = document.createElement('tr');
+                    celula(linha, `#${p.id}`, 'codigo');
+                    celula(linha, p.nome, 'produto-nome');
+                    celula(linha, `R$ ${preco.toFixed(2).replace('.', ',')}`);
+                    celula(linha, `${saldo} ${unidade}`, Number(saldo) <= Number(p.estoque_minimo) ? 'estoque-baixo' : '');
+                    const acao = celula(linha, '');
+                    const botao = document.createElement('button');
+                    botao.type = 'button';
+                    botao.className = 'btn-desativar';
+                    botao.textContent = 'Desativar';
+                    botao.setAttribute('aria-label', `Desativar ${p.nome}`);
+                    botao.addEventListener('click', () => desativarProduto(p.id, p.nome));
+                    acao.appendChild(botao);
+                    tabela.appendChild(linha);
                 });
             } catch (erro) {
                 console.error('Erro ao carregar estoque:', erro);
+                definirMensagem('Não foi possível carregar o estoque. Confira se o servidor está ativo.', true);
             }
         }
 
-        // Evento de clique no botão de cadastrar
+        async function carregarAnalise() {
+            const menosVendidos = document.getElementById('listaMenosVendidos');
+            const parados = document.getElementById('listaParados');
+            try {
+                const resposta = await fetch('/api/estoque/analise');
+                if (!resposta.ok) throw new Error('Falha ao carregar análise');
+                const dados = await resposta.json();
+                preencherAnalise(menosVendidos, dados.produtos_menos_vendidos || [], true);
+                preencherAnalise(parados, dados.produtos_parados || [], false);
+            } catch (erro) {
+                console.error('Erro ao carregar análise do estoque:', erro);
+                mostrarVazio(menosVendidos, 3, 'Análise indisponível.');
+                mostrarVazio(parados, 2, 'Análise indisponível.');
+            }
+        }
+
+        async function carregarProdutosDesativados() {
+            const tabela = document.getElementById('listaDesativados');
+            try {
+                const resposta = await fetch('/api/produtos/desativados');
+                if (!resposta.ok) throw new Error('Falha ao carregar produtos desativados');
+                const produtos = await resposta.json();
+                const aba = document.getElementById('abaDesativados');
+                aba.textContent = `Desativados recentes${produtos.length ? ` (${produtos.length})` : ''}`;
+
+                if (produtos.length === 0) {
+                    mostrarVazio(tabela, 4, 'Nenhum produto desativado recentemente.');
+                    return;
+                }
+
+                tabela.replaceChildren();
+                produtos.forEach(produto => {
+                    const linha = document.createElement('tr');
+                    celula(linha, `#${produto.id}`, 'codigo');
+                    celula(linha, produto.nome, 'produto-nome');
+                    const data = produto.desativado_em
+                        ? new Date(`${produto.desativado_em.replace(' ', 'T')}Z`).toLocaleString('pt-BR')
+                        : 'Data não registrada';
+                    celula(linha, data);
+                    const acao = celula(linha, '');
+                    const botao = document.createElement('button');
+                    botao.type = 'button';
+                    botao.className = 'btn-reativar';
+                    botao.textContent = 'Reativar';
+                    botao.setAttribute('aria-label', `Reativar ${produto.nome}`);
+                    botao.addEventListener('click', () => reativarProduto(produto.id, produto.nome));
+                    acao.appendChild(botao);
+                    tabela.appendChild(linha);
+                });
+            } catch (erro) {
+                console.error('Erro ao carregar produtos desativados:', erro);
+                mostrarVazio(tabela, 4, 'Não foi possível carregar os produtos desativados.');
+            }
+        }
+
+        async function reativarProduto(id, nome) {
+            try {
+                const resposta = await fetch(`/api/produtos/${id}/reativar`, { method: 'PUT' });
+                const resultado = await resposta.json();
+                if (!resposta.ok) throw new Error(resultado.erro || 'Falha ao reativar produto.');
+                definirMensagem(`Produto "${nome}" reativado e disponível no caixa.`);
+                await Promise.all([carregarEstoque(), carregarAnalise(), carregarProdutosDesativados()]);
+            } catch (erro) {
+                definirMensagem(erro.message, true);
+            }
+        }
+
+        function preencherAnalise(tabela, produtos, mostrarVendas) {
+            if (produtos.length === 0) {
+                mostrarVazio(tabela, mostrarVendas ? 3 : 2, 'Nenhum produto nesta lista.');
+                return;
+            }
+            tabela.replaceChildren();
+            produtos.forEach(produto => {
+                const linha = document.createElement('tr');
+                celula(linha, produto.nome, 'produto-nome');
+                if (mostrarVendas) celula(linha, `${produto.total_vendido} ${produto.unidade || 'un'}`);
+                celula(linha, `${produto.saldo_atual} ${produto.unidade || 'un'}`);
+                tabela.appendChild(linha);
+            });
+        }
+
+        async function desativarProduto(id, nome) {
+            if (!confirm(`Desativar "${nome}"? Ele deixará de aparecer no caixa, mas o histórico será mantido.`)) return;
+            try {
+                const resposta = await fetch(`/api/produtos/${id}`, { method: 'DELETE' });
+                const resultado = await resposta.json();
+                if (!resposta.ok) throw new Error(resultado.erro || 'Falha ao desativar produto.');
+                definirMensagem(`Produto "${nome}" desativado.`);
+                await Promise.all([carregarEstoque(), carregarAnalise(), carregarProdutosDesativados()]);
+            } catch (erro) {
+                definirMensagem(erro.message, true);
+            }
+        }
+
         document.getElementById('formCadastro').addEventListener('submit', async (e) => {
-            e.preventDefault(); // Impede a página de recarregar
-            
+            e.preventDefault();
             const nome = document.getElementById('nome').value;
             const preco_venda = parseFloat(document.getElementById('preco').value);
             const estoque_qtd = parseFloat(document.getElementById('quantidade').value);
 
             try {
-                // Envia para o servidor (server.js) com os nomes de campos corretos
                 const resposta = await fetch('/api/produtos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -148,20 +412,26 @@
 
                 if (resposta.ok) {
                     document.getElementById('formCadastro').reset();
-                    carregarEstoque(); // Recarrega a tabela na hora
+                    definirMensagem(`Produto "${nome}" cadastrado.`);
+                    await Promise.all([carregarEstoque(), carregarAnalise()]);
                 } else {
                     const errData = await resposta.json();
-                    alert('Erro ao cadastrar produto: ' + (errData.erro || 'Verifique o backend'));
+                    definirMensagem('Erro ao cadastrar produto: ' + (errData.erro || 'Verifique o servidor.'), true);
                 }
             } catch (erro) {
                 console.error('Erro no cadastro:', erro);
-                alert('Erro ao conectar com o servidor.');
+                definirMensagem('Erro ao conectar com o servidor.', true);
             }
         });
 
-        // Carrega a tabela assim que a página abre
         carregarEstoque();
+        carregarAnalise();
         document.getElementById('buscaEstoque').addEventListener('input', carregarEstoque);
+        document.getElementById('abaAtivos').addEventListener('click', () => alternarAbaProdutos('ativos'));
+        document.getElementById('abaDesativados').addEventListener('click', () => {
+            alternarAbaProdutos('desativados');
+            carregarProdutosDesativados();
+        });
     </script>
 </body>
 </html>

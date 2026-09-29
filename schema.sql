@@ -8,6 +8,7 @@ CREATE TABLE "produtos" (
     "preco_venda" REAL DEFAULT 0.0,
     "estoque_minimo" REAL DEFAULT 0.0,
     "ativo"  INTEGER DEFAULT 1,
+    "desativado_em" DATETIME,
     "criado_em" DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

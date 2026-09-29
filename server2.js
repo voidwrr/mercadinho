@@ -109,14 +109,86 @@ app.put('/api/produtos/:id', (req, res) => {
 // DESATIVAR (Soft Delete) produto
 app.delete('/api/produtos/:id', (req, res) => {
     const { id } = req.params;
-    const sql = `DELETE FROM vw_produtos_ativo WHERE id = ?`;
+    const sql = `UPDATE produtos SET ativo = 0, desativado_em = CURRENT_TIMESTAMP WHERE id = ? AND ativo = 1`;
 
     db.run(sql, [id], function(err) {
         if (err) {
             console.error("❌ Erro ao deletar produto:", err.message);
             return res.status(500).json({ erro: err.message });
         }
+        if (this.changes === 0) {
+            return res.status(404).json({ erro: "Produto não encontrado ou já desativado." });
+        }
         res.json({ mensagem: "Produto desativado com sucesso!" });
+    });
+});
+
+app.get('/api/produtos/desativados', (req, res) => {
+    db.all(`
+        SELECT id, nome, unidade, desativado_em
+        FROM produtos
+        WHERE ativo = 0
+        ORDER BY CASE WHEN desativado_em IS NULL THEN 1 ELSE 0 END, desativado_em DESC, nome COLLATE NOCASE
+        LIMIT 20
+    `, [], (err, produtos) => {
+        if (err) {
+            return res.status(500).json({ erro: err.message });
+        }
+        res.json(produtos);
+    });
+});
+
+app.put('/api/produtos/:id/reativar', (req, res) => {
+    const { id } = req.params;
+    db.run('UPDATE produtos SET ativo = 1, desativado_em = NULL WHERE id = ? AND ativo = 0', [id], function(err) {
+        if (err) {
+            return res.status(500).json({ erro: err.message });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ erro: 'Produto desativado não encontrado.' });
+        }
+        res.json({ mensagem: 'Produto reativado com sucesso!' });
+    });
+});
+
+app.get('/api/estoque/analise', (req, res) => {
+    const sql = `
+        WITH vendas_periodo AS (
+            SELECT vi.produto_id, SUM(vi.qtd) AS total_vendido
+            FROM vendas_itens vi
+            JOIN vendas v ON v.id = vi.venda_id
+            WHERE v.data >= datetime('now', '-30 days')
+            GROUP BY vi.produto_id
+        ), saldos AS (
+            SELECT produto_id, SUM(qtd) AS saldo_atual
+            FROM estoque
+            GROUP BY produto_id
+        )
+        SELECT p.id, p.nome, p.unidade,
+               COALESCE(vp.total_vendido, 0) AS total_vendido,
+               COALESCE(s.saldo_atual, 0) AS saldo_atual
+        FROM produtos p
+        LEFT JOIN vendas_periodo vp ON vp.produto_id = p.id
+        LEFT JOIN saldos s ON s.produto_id = p.id
+        WHERE p.ativo = 1
+        ORDER BY total_vendido ASC, p.nome COLLATE NOCASE
+    `;
+
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('Erro ao analisar vendas do estoque:', err.message);
+            return res.status(500).json({ erro: 'Erro ao analisar vendas do estoque.' });
+        }
+        const produtos = rows.map(produto => ({
+            ...produto,
+            total_vendido: Number(produto.total_vendido || 0),
+            saldo_atual: Number(produto.saldo_atual || 0)
+        }));
+        res.json({
+            periodo_dias: 30,
+            produtos_menos_vendidos: produtos.slice(0, 5),
+            produtos_parados: produtos.filter(produto => produto.total_vendido === 0)
+        });
     });
 });
 
@@ -293,8 +365,31 @@ app.get('/api/relatorios', (req, res) => {
     });
 });
 
+function iniciarServidor() {
+    db.all('PRAGMA table_info(produtos)', [], (err, colunas) => {
+        if (err) {
+            console.error('Erro ao verificar a estrutura de produtos:', err.message);
+            return;
+        }
+
+        const iniciarHttp = () => app.listen(PORT, () => {
+            console.log(`\n🚀 Servidor do Mercadinho rodando na porta ${PORT}!`);
+            console.log(`👉 Acesse no navegador: http://localhost:${PORT}/caixa.html\n`);
+        });
+
+        if (colunas.some(coluna => coluna.name === 'desativado_em')) {
+            return iniciarHttp();
+        }
+
+        db.run('ALTER TABLE produtos ADD COLUMN desativado_em DATETIME', erroAlteracao => {
+            if (erroAlteracao) {
+                console.error('Erro ao preparar a data de desativação:', erroAlteracao.message);
+                return;
+            }
+            iniciarHttp();
+        });
+    });
+}
+
 // Inicialização do servidor
-app.listen(PORT, () => {
-    console.log(`\n🚀 Servidor do Mercadinho rodando na porta ${PORT}!`);
-    console.log(`👉 Acesse no navegador: http://localhost:${PORT}/caixa.html\n`);
-});
+iniciarServidor();
