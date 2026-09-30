@@ -14,6 +14,12 @@
       --text: #34445a;
       --muted: #6b7d95;
       --accent: #426bd6;
+  --primary: var(--accent);
+  --success: #369b77;
+  --warning: #e59a3b;
+  --border-color: var(--line);
+  --text-main: var(--text);
+  --text-muted: var(--muted);
     }
     * { box-sizing: border-box; }
     body {
@@ -34,6 +40,7 @@
       box-shadow: 0 8px 24px rgba(0, 0, 0, .045);
     }
 
+    /* Cabeçalho e Navegação */
     .topo {
       display: flex;
       justify-content: space-between;
@@ -42,6 +49,7 @@
       margin-bottom: 24px;
       padding-bottom: 17px;
       border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
     }
 
     h1 {
@@ -50,7 +58,12 @@
       color: var(--text);
     }
 
-    .btn {
+    .navegacao {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-nav {
       text-decoration: none;
       display: inline-flex;
       align-items: center;
@@ -66,29 +79,50 @@
     }
     .btn:hover { border-color: var(--accent); color: var(--accent); }
 
-    .cards {
+    .btn-nav.ativo {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    /* Grid de Cards KPIs */
+    .cards-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(250px, 1fr));
-      gap: 16px;
-      margin-bottom: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
     }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--line);
-      border-left: 4px solid var(--accent);
-      border-radius: 8px;
-      padding: 20px 18px;
-      min-height: 120px;
+    .card-kpi {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .card:nth-child(2) {
-      border-left-color: #e59a3b;
-      background: #fff8eb;
+    .card-kpi:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.05);
     }
 
-    .label {
-      font-size: 0.82rem;
+    .card-kpi::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 5px;
+      height: 100%;
+      background: var(--primary);
+    }
+
+    .card-kpi.faturamento::before { background: var(--success); }
+    .card-kpi.vendas::before { background: var(--primary); }
+    .card-kpi.ticket::before { background: var(--warning); }
+
+    .card-label {
+      font-size: 12px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
@@ -96,54 +130,136 @@
       margin-bottom: 10px;
     }
 
-    .valor {
-      font-size: 2rem;
+    .card-valor {
+      font-size: 26px;
       font-weight: 800;
       color: var(--text);
     }
 
-    .grafico-wrap {
+    .grafico-card {
       background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: 18px;
     }
 
-    canvas {
-      width: 100% !important;
-      height: 340px !important;
+    .grafico-cabecalho {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .grafico-titulo {
+      font-size: 18px;
+      font-weight: 700;
+      color: #334155;
+      margin: 0;
+    }
+
+    .filtro-periodo {
+      padding: 6px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fff;
+      color: var(--text-main);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 350px;
+    }
+
+    /* Fallback sem Chart.js */
+    .fallback-barras {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 10px;
+    }
+
+    .bar-item-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .bar-track {
+      height: 16px;
+      background: #e2e8f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 8px;
+      transition: width 0.5s ease;
     }
     @media (max-width: 620px) {
       body { padding: 18px 12px 32px; }
       .painel { padding: 18px; }
       .topo { align-items: flex-start; flex-direction: column; }
-      .cards { grid-template-columns: 1fr; }
+      .cards-grid { grid-template-columns: 1fr; }
       canvas { height: 300px !important; }
     }
   </style>
 </head>
 <body>
   <div class="painel">
+    <!-- Cabeçalho -->
     <div class="topo">
-      <h1>📊 Painel de Relatórios e Vendas</h1>
-      <a class="btn" href="/caixa.html">Ir para o Caixa</a>
+      <h1>📈 Painel de Desempenho</h1>
+      <nav class="navegacao">
+        <a class="btn-nav" href="/caixa.html">🛒 Caixa</a>
+        <a class="btn-nav" href="/estoque.html">📦 Estoque</a>
+        <a class="btn-nav ativo" href="/dashboard.html">📊 Dashboard</a>
+      </nav>
     </div>
 
-    <div class="cards">
-      <div class="card">
-        <div class="label">Faturamento Total</div>
-        <div id="faturamentoTotal" class="valor">R$ 0,00</div>
+    <!-- Indicadores Principais (KPIs) -->
+    <div class="cards-grid">
+      <div class="card-kpi faturamento">
+        <div class="card-label">Faturamento Total</div>
+        <div id="faturamentoTotal" class="card-valor">R$ 0,00</div>
       </div>
 
-      <div class="card">
-        <div class="label">Total de Vendas</div>
-        <div id="totalVendas" class="valor">0</div>
+      <div class="card-kpi vendas">
+        <div class="card-label">Total de Vendas</div>
+        <div id="totalVendas" class="card-valor">0</div>
+      </div>
+
+      <div class="card-kpi ticket">
+        <div class="card-label">Ticket Médio</div>
+        <div id="ticketMedio" class="card-valor">R$ 0,00</div>
       </div>
     </div>
 
-    <div class="grafico-wrap">
-      <canvas id="graficoMaisVendidos"></canvas>
-      <div id="graficoFallback" style="display:none;"></div>
+    <!-- Seção do Gráfico -->
+    <div class="grafico-card">
+      <div class="grafico-cabecalho">
+        <h2 class="grafico-titulo">🏆 Produtos Mais Vendidos</h2>
+        <select id="filtroPeriodo" class="filtro-periodo" onchange="carregarRelatorio()">
+          <option value="todos">Todo o Período</option>
+          <option value="hoje">Hoje</option>
+          <option value="7dias">Últimos 7 dias</option>
+          <option value="30dias">Últimos 30 dias</option>
+        </select>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="graficoMaisVendidos"></canvas>
+        <div id="graficoFallback" style="display:none;" class="fallback-barras"></div>
+      </div>
     </div>
   </div>
 
@@ -151,8 +267,10 @@
     const coresProdutos = ['#426bd6', '#e59a3b', '#d85f68', '#8867b4', '#369bb8'];
 
     async function carregarRelatorio() {
+      const periodo = document.getElementById('filtroPeriodo').value;
+
       try {
-        const resposta = await fetch('/api/relatorios');
+        const resposta = await fetch(`/api/relatorios?periodo=${periodo}`);
 
         if (!resposta.ok) {
           const texto = await resposta.text();
@@ -163,82 +281,119 @@
 
         const faturamento = Number(dados.faturamento_total ?? 0);
         const vendas = Number(dados.total_vendas ?? 0);
+        const ticketMedio = vendas > 0 ? (faturamento / vendas) : 0;
+
         const produtos = Array.isArray(dados.produtos_mais_vendidos)
           ? dados.produtos_mais_vendidos
           : [];
 
+        // Atualização dos Cards
         document.getElementById('faturamentoTotal').textContent =
-          `R$ ${faturamento.toFixed(2).replace('.', ',')}`;
+          `R$ ${faturamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-        document.getElementById('totalVendas').textContent =
-          vendas;
+        document.getElementById('totalVendas').textContent = vendas;
+
+        document.getElementById('ticketMedio').textContent =
+          `R$ ${ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
         const canvas = document.getElementById('graficoMaisVendidos');
+        const fallback = document.getElementById('graficoFallback');
 
+        // Validação da biblioteca Chart.js
         if (typeof Chart !== 'function') {
-          canvas.style.display = 'none';
-          const fallback = document.getElementById('graficoFallback');
-          fallback.style.display = 'grid';
-          fallback.style.gap = '12px';
-          fallback.innerHTML = produtos.length
-            ? produtos.map((produto, index) => `
-                <div>
-                  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <strong>${produto.nome}</strong><span>${produto.total_vendido} un.</span>
-                  </div>
-                  <div style="height:18px;background:#e7ecf5;border-radius:4px;overflow:hidden;">
-                    <div style="height:100%;width:${Math.max(Number(produto.total_vendido) * 100, 4)}%;max-width:100%;background:${coresProdutos[index % coresProdutos.length]};"></div>
-                  </div>
-                </div>
-              `).join('')
-            : '<p>Nenhum produto vendido ainda.</p>';
+          renderizarFallback(canvas, fallback, produtos);
           return;
         }
 
-        const ctx = canvas.getContext('2d');
+        canvas.style.display = 'block';
+        fallback.style.display = 'none';
 
-        if (window.graficoMaisVendidos && typeof window.graficoMaisVendidos.destroy === 'function') {
-          window.graficoMaisVendidos.destroy();
-        }
-
-        window.graficoMaisVendidos = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: produtos.map(p => p.nome),
-            datasets: [{
-              label: 'Unidades Vendidas',
-              data: produtos.map(p => Number(p.total_vendido ?? 0)),
-              backgroundColor: produtos.map((produto, index) => coresProdutos[index % coresProdutos.length]),
-              borderRadius: 5
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-              legend: { display: true, labels: { color: '#6b7279' } },
-              title: {
-                display: true,
-                text: 'Produtos Mais Vendidos',
-                color: '#25292d'
-              }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: { color: '#6b7279' },
-                grid: { color: '#e5e7e9' }
-              }
-            }
-          }
-        });
+        renderizarGraficoChartJS(canvas, produtos);
 
       } catch (erro) {
         console.error('Erro ao carregar relatório:', erro);
-        alert(`Erro ao carregar relatório: ${erro.message}`);
       }
     }
 
+    function renderizarGraficoChartJS(canvas, produtos) {
+      const ctx = canvas.getContext('2d');
+
+      if (window.instanciaGrafico && typeof window.instanciaGrafico.destroy === 'function') {
+        window.instanciaGrafico.destroy();
+      }
+
+      const labels = produtos.map(p => p.nome || 'Sem nome');
+      const valores = produtos.map(p => Number(p.total_vendido ?? 0));
+
+      window.instanciaGrafico = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Qtd. Vendida',
+            data: valores,
+            backgroundColor: [
+              '#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'
+            ],
+            borderRadius: 6,
+            borderSkipped: false
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (context) => ` Vendidos: ${context.raw} un.`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 },
+              grid: { color: '#f1f5f9' }
+            }
+          }
+        }
+      });
+    }
+
+    function renderizarFallback(canvas, fallback, produtos) {
+      canvas.style.display = 'none';
+      fallback.style.display = 'flex';
+
+      if (!produtos.length) {
+        fallback.innerHTML = '<p style="text-align:center; color:#94a3b8;">Nenhum produto vendido no período selecionado.</p>';
+        return;
+      }
+
+      const maiorQtd = Math.max(...produtos.map(p => Number(p.total_vendido ?? 0)), 1);
+
+      fallback.innerHTML = produtos.map(p => {
+        const qtd = Number(p.total_vendido ?? 0);
+        const pct = Math.max((qtd / maiorQtd) * 100, 5);
+
+        return `
+          <div>
+            <div class="bar-item-info">
+              <span>${p.nome}</span>
+              <span><strong>${qtd}</strong> un.</span>
+            </div>
+            <div class="bar-track">
+              <div class="bar-fill" style="width: ${pct}%;"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Inicialização
     carregarRelatorio();
   </script>
 </body>

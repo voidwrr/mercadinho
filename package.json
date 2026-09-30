@@ -1,4 +1,15 @@
 {
+  "name": "mercadinho-sistema",
+  "version": "1.0.0",
+  "description": "Sistema de caixa, estoque e dashboard para mercadinho",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": ["mercadinho", "pdv", "estoque", "dashboard"],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
     "express": "^5.2.1",
     "sqlite3": "^6.0.1"

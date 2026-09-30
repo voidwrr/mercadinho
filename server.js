@@ -5,90 +5,164 @@ const path = require('path');
 const app = express();
 const PORT = 3001;
 
-// 1. Configurações para ler JSON e entregar os ecrãs estáticos
+// 1. Middlewares
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 2. Conexão com a base de dados
+// 2. Conexão com o banco e ativação de Foreign Keys
 const dbPath = path.join(__dirname, 'mercadinho.db');
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error("❌ Erro ao conectar no banco:", err.message);
     } else {
         console.log("📦 Conectado ao banco de dados mercadinho.db!");
+        db.run("PRAGMA foreign_keys = ON;", (err) => {
+            if (err) console.error("❌ Erro ao ativar Foreign Keys:", err.message);
+        });
     }
 });
 
-// 3. Rota para BUSCAR os produtos e enviá-los para o ecrã do Caixa
-app.get('/api/produtos', (req, res) => {
-    const busca = String(req.query.busca || '').trim();
-    const sql = `
-        SELECT id, nome, unidade, preco_venda, estoque_minimo, saldo_atual
-        FROM vw_estoque_atual
-        WHERE (? = '' OR CAST(id AS TEXT) = ? OR nome LIKE ?)
-        ORDER BY nome
-    `;
-    const termo = `%${busca}%`;
+// ==============================================================================
+// ROTAS DE PRODUTOS
+// ==============================================================================
 
-    db.all(sql, [busca, busca, termo], (err, rows) => {
+// BUSCAR todos os produtos com SALDO ATUAL
+app.get('/api/produtos', (req, res) => {
+    const sql = `SELECT id, codigo_barras, nome, unidade, preco_venda, estoque_minimo, saldo_atual FROM vw_estoque_atual`;
+
+    db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error("❌ Erro no SQL ao buscar produtos:", err.message);
+            console.error("❌ Erro ao buscar produtos:", err.message);
+            return res.status(500).json({ erro: "Erro ao buscar produtos." });
+        }
+        res.json(rows);
+    });
+});
+
+// BUSCAR produto por CÓDIGO DE BARRAS (Ideal para o PDV / Caixa)
+app.get('/api/produtos/codigo/:codigo', (req, res) => {
+    const { codigo } = req.params;
+    const sql = `SELECT id, codigo_barras, nome, unidade, preco_venda, saldo_atual FROM vw_estoque_atual WHERE codigo_barras = ?`;
+
+    db.get(sql, [codigo], (err, row) => {
+        if (err) {
+            console.error("❌ Erro ao buscar produto por código de barras:", err.message);
+            return res.status(500).json({ erro: "Erro ao buscar produto." });
+        }
+        if (!row) {
+            return res.status(404).json({ erro: "Produto não encontrado para este código de barras." });
+        }
+        res.json(row);
+    });
+});
+
+// CADASTRAR novo produto (E criar entrada inicial no estoque)
+app.post('/api/produtos', (req, res) => {
+    const { codigo_barras, nome, unidade, preco_custo, preco_venda, estoque_minimo, estoque, quantidade, estoque_qtd } = req.body;
+
+    if (!nome) {
+        return res.status(400).json({ erro: "Nome do produto é obrigatório." });
+    }
+
+    // Trata código de barras vazio como null para não violar a restrição UNIQUE
+    const codBarrasTratado = codigo_barras && codigo_barras.trim() !== "" ? codigo_barras.trim() : null;
+    const qtdInicial = Number(estoque_qtd || quantidade || estoque || 0);
+
+    const sqlProduto = `
+        INSERT INTO produtos (codigo_barras, nome, unidade, preco_custo, preco_venda, estoque_minimo)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    const params = [codBarrasTratado, nome, unidade || 'un', preco_custo || 0, preco_venda || 0, estoque_minimo || 0];
+
+    db.run(sqlProduto, params, function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(400).json({ erro: "Já existe um produto cadastrado com este código de barras." });
+            }
+            console.error("❌ Erro ao inserir produto:", err.message);
+            return res.status(500).json({ erro: err.message });
+        }
+
+        const produtoId = this.lastID;
+
+        // Se houver quantidade inicial informada, insere na tabela 'estoque'
+        if (qtdInicial > 0) {
+            const sqlEstoque = `
+                INSERT INTO estoque (produto_id, movimentacao, qtd, obs)
+                VALUES (?, 'compra', ?, 'Entrada de cadastro inicial')
+            `;
+            db.run(sqlEstoque, [produtoId, qtdInicial], (errEstoque) => {
+                if (errEstoque) {
+                    console.error("❌ Erro ao registrar estoque inicial:", errEstoque.message);
+                }
+                return res.status(201).json({ mensagem: "Produto cadastrado com estoque!", id: produtoId });
+            });
+        } else {
+            res.status(201).json({ mensagem: "Produto cadastrado com sucesso!", id: produtoId });
+        }
+    });
+});
+
+// ATUALIZAR produto existente
+app.put('/api/produtos/:id', (req, res) => {
+    const { id } = req.params;
+    const { codigo_barras, nome, unidade, preco_custo, preco_venda, estoque_minimo } = req.body;
+
+    const codBarrasTratado = codigo_barras && codigo_barras.trim() !== "" ? codigo_barras.trim() : null;
+
+    const sql = `
+        UPDATE produtos
+        SET codigo_barras = ?, nome = ?, unidade = ?, preco_custo = ?, preco_venda = ?, estoque_minimo = ?
+        WHERE id = ? AND ativo = 1
+    `;
+    const params = [codBarrasTratado, nome, unidade, preco_custo, preco_venda, estoque_minimo, id];
+
+    db.run(sql, params, function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(400).json({ erro: "Este código de barras já está em uso por outro produto." });
+            }
+            console.error("❌ Erro ao atualizar produto:", err.message);
+            return res.status(500).json({ erro: err.message });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ erro: "Produto não encontrado ou inativo." });
+        }
+        res.json({ mensagem: "Produto atualizado com sucesso!" });
+    });
+});
+
+// DESATIVAR (Soft Delete) produto
+app.delete('/api/produtos/:id', (req, res) => {
+    const { id } = req.params;
+    db.run('UPDATE produtos SET ativo = 0, desativado_em = CURRENT_TIMESTAMP WHERE id = ? AND ativo = 1', [id], function(err) {
+        if (err) {
+            console.error("❌ Erro ao deletar produto:", err.message);
+            return res.status(500).json({ erro: err.message });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ erro: "Produto não encontrado ou já desativado." });
+        }
+        res.json({ mensagem: "Produto desativado com sucesso!" });
+    });
+});
+
+// LISTAR produtos com estoque baixo
+app.get('/api/produtos/estoque-baixo', (req, res) => {
+    const sql = `SELECT * FROM vw_produtos_estoque_baixo`;
+
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error("❌ Erro ao buscar alerta de estoque:", err.message);
             return res.status(500).json({ erro: err.message });
         }
         res.json(rows);
     });
 });
 
-// 4. Rota para CADASTRAR novos produtos a partir do novo ecrã de Gestão
-app.post('/api/produtos', (req, res) => {
-    const { nome, unidade, preco_custo, preco_venda, estoque_minimo, estoque, quantidade, estoque_qtd } = req.body;
-    const qtdInicial = Number(estoque_qtd ?? quantidade ?? estoque ?? 0);
-
-    if (!nome || !Number.isFinite(qtdInicial) || qtdInicial < 0) {
-        return res.status(400).json({ erro: "Nome e quantidade inicial válida são obrigatórios." });
-    }
-
-    const sql = `
-        INSERT INTO produtos (nome, unidade, preco_custo, preco_venda, estoque_minimo, ativo)
-        VALUES (?, ?, ?, ?, ?, 1)
-    `;
-
-    db.run(sql, [nome, unidade || 'un', Number(preco_custo || 0), Number(preco_venda || 0), Number(estoque_minimo || 0)], function(err) {
-        if (err) {
-            console.error("❌ Erro ao inserir produto:", err.message);
-            return res.status(500).json({ erro: err.message });
-        }
-
-        const produtoId = this.lastID;
-        const responder = (erroEstoque) => {
-            if (erroEstoque) {
-                return res.status(500).json({ erro: erroEstoque.message });
-            }
-            console.log(`✅ Novo produto cadastrado: ${nome}`);
-            res.status(201).json({ mensagem: "Produto cadastrado!", id: produtoId });
-        };
-
-        if (qtdInicial === 0) return responder();
-
-        db.run(
-            `INSERT INTO estoque (produto_id, movimentacao, qtd, obs) VALUES (?, 'compra', ?, 'Entrada de cadastro inicial')`,
-            [produtoId, qtdInicial],
-            responder
-        );
-    });
-});
-
-app.delete('/api/produtos/:id', (req, res) => {
-    db.run('UPDATE produtos SET ativo = 0, desativado_em = CURRENT_TIMESTAMP WHERE id = ? AND ativo = 1', [req.params.id], function(err) {
-        if (err) {
-            return res.status(500).json({ erro: err.message });
-        }
-        if (this.changes === 0) {
-            return res.status(404).json({ erro: 'Produto não encontrado ou já desativado.' });
-        }
-        res.json({ mensagem: 'Produto desativado com sucesso!' });
-    });
-});
+// ==============================================================================
+// ROTAS DE VENDAS
+// ==============================================================================
 
 app.get('/api/produtos/desativados', (req, res) => {
     db.all(`
@@ -158,12 +232,11 @@ app.get('/api/estoque/analise', (req, res) => {
     });
 });
 
-// 5. Rota para registar as vendas e ATUALIZAR O ESTOQUE
+// REGISTRAR nova venda
 app.post('/api/vendas', (req, res) => {
     const { subtotal, desconto, total, forma_pagamento, itens } = req.body;
 
-    // Se não houver itens, não há nada a descontar
-    if (!itens || itens.length === 0) {
+    if (!itens || !Array.isArray(itens) || itens.length === 0) {
         return res.status(400).json({ erro: "O carrinho está vazio." });
     }
 
@@ -172,85 +245,152 @@ app.post('/api/vendas', (req, res) => {
     }
 
     db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-        db.run(
-            `INSERT INTO vendas (subtotal, desconto, total, forma_pagamento) VALUES (?, ?, ?, ?)`,
-            [Number(subtotal || 0), Number(desconto || 0), Number(total || subtotal || 0), forma_pagamento],
-            function(err) {
-                if (err) {
-                    db.run('ROLLBACK');
-                    return res.status(500).json({ erro: err.message });
-                }
+        db.run("BEGIN TRANSACTION;");
 
-                const vendaId = this.lastID;
-                const sqlItem = `
-                    INSERT INTO vendas_itens (venda_id, produto_id, qtd, preco, desconto, total)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                `;
-                let concluidos = 0;
-                let falhou = false;
+        const sqlVenda = `
+            INSERT INTO vendas (subtotal, desconto, total, forma_pagamento)
+            VALUES (?, ?, ?, ?)
+        `;
+        const paramsVenda = [subtotal, desconto || 0, total, forma_pagamento.toLowerCase()];
 
-                itens.forEach(item => {
-                    const qtd = Number(item.qtd ?? item.quantidade ?? 0);
-                    const preco = Number(item.preco ?? item.preco_unitario ?? 0);
-                    const itemDesconto = Number(item.desconto || 0);
-                    const itemTotal = Number(item.subtotal ?? ((qtd * preco) - itemDesconto));
-
-                    db.run(sqlItem, [vendaId, item.produto_id, qtd, preco, itemDesconto, itemTotal], errItem => {
-                        if (falhou) return;
-                        if (errItem) {
-                            falhou = true;
-                            db.run('ROLLBACK');
-                            return res.status(500).json({ erro: errItem.message });
-                        }
-
-                        concluidos++;
-                        if (concluidos === itens.length) {
-                            db.run('COMMIT', errCommit => {
-                                if (errCommit) {
-                                    return res.status(500).json({ erro: errCommit.message });
-                                }
-                                res.status(201).json({ mensagem: 'Venda concluída!', venda_id: vendaId });
-                            });
-                        }
-                    });
-                });
+        db.run(sqlVenda, paramsVenda, function(err) {
+            if (err) {
+                db.run("ROLLBACK;");
+                console.error("❌ Erro ao registrar cabeçalho da venda:", err.message);
+                return res.status(500).json({ erro: "Erro ao registrar venda: " + err.message });
             }
-        );
+
+            const vendaId = this.lastID;
+            const sqlItem = `
+                INSERT INTO vendas_itens (venda_id, produto_id, qtd, preco, desconto, total)
+                VALUES (?, ?, ?, ?, ?, ?)
+            `;
+
+            let concluidos = 0;
+            let temErro = false;
+
+            itens.forEach((item) => {
+                const qtd = Number(item.qtd || item.quantidade || 0);
+                const preco = Number(item.preco || item.preco_unitario || 0);
+                const itemDesconto = Number(item.desconto || 0);
+                const itemTotal = Number(item.subtotal || ((qtd * preco) - itemDesconto));
+
+                db.run(sqlItem, [vendaId, item.produto_id, qtd, preco, itemDesconto, itemTotal], (errItem) => {
+                    if (temErro) return;
+
+                    if (errItem) {
+                        temErro = true;
+                        db.run("ROLLBACK;");
+                        console.error("❌ Erro ao inserir item da venda:", errItem.message);
+                        return res.status(500).json({ erro: "Erro ao salvar itens da venda." });
+                    }
+
+                    concluidos++;
+
+                    if (concluidos === itens.length) {
+                        db.run("COMMIT;", (errCommit) => {
+                            if (errCommit) {
+                                db.run("ROLLBACK;");
+                                return res.status(500).json({ erro: "Erro ao finalizar transação." });
+                            }
+                            console.log(`✅ Venda #${vendaId} registrada com sucesso!`);
+                            return res.status(201).json({ mensagem: "Venda concluída!", venda_id: vendaId });
+                        });
+                    }
+                });
+            });
+        });
     });
 });
 
-// 6. Rota para relatórios
+// CANCELAR / APAGAR venda
+app.delete('/api/vendas/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = `DELETE FROM vendas WHERE id = ?`;
+
+    db.run(sql, [id], function(err) {
+        if (err) {
+            console.error("❌ Erro ao cancelar venda:", err.message);
+            return res.status(500).json({ erro: err.message });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ erro: "Venda não encontrada." });
+        }
+        res.json({ mensagem: "Venda cancelada e estoque estornado com sucesso!" });
+    });
+});
+
+// ==============================================================================
+// ROTAS DE MOVIMENTAÇÃO DE ESTOQUE E RELATÓRIOS
+// ==============================================================================
+
+app.post('/api/estoque/movimentacao', (req, res) => {
+    const { produto_id, movimentacao, qtd, obs } = req.body;
+
+    if (!['compra', 'ajuste'].includes(movimentacao)) {
+        return res.status(400).json({ erro: "Tipo de movimentação inválido. Use 'compra' ou 'ajuste'." });
+    }
+
+    const sql = `
+        INSERT INTO estoque (produto_id, movimentacao, qtd, obs)
+        VALUES (?, ?, ?, ?)
+    `;
+
+    db.run(sql, [produto_id, movimentacao, qtd, obs || 'Ajuste manual'], function(err) {
+        if (err) {
+            console.error("❌ Erro ao registrar movimentação de estoque:", err.message);
+            return res.status(500).json({ erro: err.message });
+        }
+        res.status(201).json({ mensagem: "Estoque atualizado com sucesso!", id: this.lastID });
+    });
+});
+
 app.get('/api/relatorios', (req, res) => {
-    db.get(`
+    const periodos = {
+        hoje: "datetime('now', 'start of day')",
+        '7dias': "datetime('now', '-7 days')",
+        '30dias': "datetime('now', '-30 days')"
+    };
+    const periodo = req.query.periodo || 'todos';
+    const filtroData = periodos[periodo] ? `WHERE data >= ${periodos[periodo]}` : '';
+    const filtroItensData = periodos[periodo] ? `WHERE v.data >= ${periodos[periodo]}` : '';
+    const sqlResumo = `
         SELECT
             COALESCE(SUM(total), 0) AS faturamento_total,
             COUNT(*) AS total_vendas
         FROM vendas
-    `, [], (err, resumo) => {
+        ${filtroData}
+    `;
+
+    const sqlMaisVendidos = `
+        SELECT
+            p.nome,
+            COALESCE(SUM(vi.qtd), 0) AS total_vendido
+        FROM vendas_itens vi
+        JOIN vendas v ON v.id = vi.venda_id
+        JOIN produtos p ON p.id = vi.produto_id
+        ${filtroItensData}
+        GROUP BY p.id, p.nome
+        ORDER BY total_vendido DESC
+        LIMIT 5
+    `;
+
+    db.get(sqlResumo, [], (err, resumo) => {
         if (err) {
-            console.error('Erro ao buscar resumo:', err.message);
-            return res.status(500).json({ erro: 'Erro ao buscar resumo.' });
+            console.error('❌ Erro ao buscar resumo:', err.message);
+            return res.status(500).json({ erro: 'Erro ao buscar resumo de vendas.' });
         }
 
-        db.all(`
-            SELECT
-                p.nome,
-                COALESCE(SUM(vi.qtd), 0) AS total_vendido
-            FROM vendas_itens vi
-            JOIN produtos p ON p.id = vi.produto_id
-            GROUP BY p.id, p.nome
-            ORDER BY total_vendido DESC
-            LIMIT 5
-        `, [], (err2, produtos) => {
+        db.all(sqlMaisVendidos, [], (err2, produtos) => {
             if (err2) {
-                console.error('Erro ao buscar produtos mais vendidos:', err2.message);
+                console.error('❌ Erro ao buscar mais vendidos:', err2.message);
                 return res.status(500).json({ erro: 'Erro ao buscar produtos mais vendidos.' });
             }
 
             res.json({
                 faturamento_total: Number(resumo?.faturamento_total || 0),
                 total_vendas: Number(resumo?.total_vendas || 0),
+                periodo,
                 produtos_mais_vendidos: (produtos || []).map(item => ({
                     nome: item.nome,
                     total_vendido: Number(item.total_vendido || 0)
@@ -276,16 +416,60 @@ function iniciarServidor() {
             console.log(`👉 Segure CTRL e clique aqui: http://localhost:${PORT}/caixa.html\n`);
         });
 
-        if (colunas.some(coluna => coluna.name === 'desativado_em')) {
-            return iniciarHttp();
-        }
+        const atualizarViewEstoque = () => {
+            db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_produtos_codigo_barras ON produtos(codigo_barras)', erroIndice => {
+                if (erroIndice) console.error('Não foi possível criar o índice único de código de barras:', erroIndice.message);
 
-        db.run('ALTER TABLE produtos ADD COLUMN desativado_em DATETIME', erro => {
-            if (erro) {
-                console.error('Erro ao preparar a data de desativação:', erro.message);
-                return;
-            }
-            iniciarHttp();
+            db.all('PRAGMA table_info(vw_estoque_atual)', (erroView, campos) => {
+                if (erroView) {
+                    console.error('Erro ao verificar a view de estoque:', erroView.message);
+                    return;
+                }
+                if (campos.some(campo => campo.name === 'codigo_barras')) return iniciarHttp();
+
+                db.exec(`
+                    DROP VIEW IF EXISTS vw_produtos_estoque_baixo;
+                    DROP VIEW IF EXISTS vw_estoque_atual;
+                    CREATE VIEW vw_estoque_atual AS
+                    SELECT p.id, p.codigo_barras, p.nome, p.unidade, p.preco_venda, p.estoque_minimo,
+                           COALESCE(SUM(e.qtd), 0) AS saldo_atual
+                    FROM produtos p
+                    LEFT JOIN estoque e ON p.id = e.produto_id
+                    WHERE p.ativo = 1
+                    GROUP BY p.id;
+                    CREATE VIEW vw_produtos_estoque_baixo AS
+                    SELECT * FROM vw_estoque_atual WHERE saldo_atual <= estoque_minimo;
+                `, erroAtualizacao => {
+                    if (erroAtualizacao) {
+                        console.error('Erro ao atualizar as views de estoque:', erroAtualizacao.message);
+                        return;
+                    }
+                    iniciarHttp();
+                });
+            });
+            });
+        };
+
+        const garantirColuna = (nome, tipo, proxima) => {
+            db.all('PRAGMA table_info(produtos)', (erroColunas, colunasAtuais) => {
+                if (erroColunas) {
+                    console.error('Erro ao verificar a tabela de produtos:', erroColunas.message);
+                    return;
+                }
+                if (colunasAtuais.some(coluna => coluna.name === nome)) return proxima();
+
+                db.run(`ALTER TABLE produtos ADD COLUMN ${nome} ${tipo}`, erroColuna => {
+                    if (erroColuna) {
+                        console.error(`Erro ao preparar a coluna ${nome}:`, erroColuna.message);
+                        return;
+                    }
+                    proxima();
+                });
+            });
+        };
+
+        garantirColuna('codigo_barras', 'TEXT', () => {
+            garantirColuna('desativado_em', 'DATETIME', atualizarViewEstoque);
         });
     });
 }
